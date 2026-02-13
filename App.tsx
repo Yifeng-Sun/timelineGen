@@ -5,20 +5,35 @@ import TimelinePreview from './components/TimelinePreview';
 import ControlPanel from './components/ControlPanel';
 import AddItemPanel from './components/AddItemPanel';
 
+const STORAGE_KEY = 'chronicle-flow-items';
+
+const DEFAULT_ITEMS: TimelineItem[] = [
+  { id: '1', label: 'Alarm quacks', date: 'Jun 7, 2025 6:00 AM', type: 'event' },
+  { id: '2', label: 'Pond yoga', startDate: 'Jun 7, 2025 6:30 AM', endDate: 'Jun 7, 2025 7:15 AM', type: 'period' },
+  { id: '3', label: 'Bread heist at the park', date: 'Jun 7, 2025 8:00 AM', type: 'event' },
+  { id: '4', label: 'Food coma', date: 'Jun 7, 2025 9:00 AM', type: 'note' },
+  { id: '5', label: 'Nap on a lily pad', startDate: 'Jun 7, 2025 10:00 AM', endDate: 'Jun 7, 2025 1:00 PM', type: 'period' },
+  { id: '6', label: 'Synchronized swimming', date: 'Jun 7, 2025 2:30 PM', type: 'event' },
+  { id: '7', label: 'Sunset waddle', date: 'Jun 7, 2025 6:00 PM', type: 'event' },
+  { id: '8', label: 'Quack-aroke night', startDate: 'Jun 7, 2025 8:00 PM', endDate: 'Jun 7, 2025 11:00 PM', type: 'period' },
+  { id: '9', label: 'Zzz under the stars', date: 'Jun 7, 2025 11:30 PM', type: 'event' },
+  { id: '10', label: 'Lazy Sunday', startDate: 'Jun 8, 2025 9:00 AM', endDate: 'Jun 8, 2025 5:00 PM', type: 'period' },
+  { id: '11', label: 'Back to the grind', date: 'Jun 9, 2025 7:00 AM', type: 'note' },
+];
+
+function loadItems(): TimelineItem[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch { /* ignore corrupt data */ }
+  return DEFAULT_ITEMS;
+}
+
 const App: React.FC = () => {
-  const [items, setItems] = useState<TimelineItem[]>([
-    { id: '1', label: 'Alarm quacks', date: 'Jun 7, 2025 6:00 AM', type: 'event' },
-    { id: '2', label: 'Pond yoga', startDate: 'Jun 7, 2025 6:30 AM', endDate: 'Jun 7, 2025 7:15 AM', type: 'period' },
-    { id: '3', label: 'Bread heist at the park', date: 'Jun 7, 2025 8:00 AM', type: 'event' },
-    { id: '4', label: 'Food coma', date: 'Jun 7, 2025 9:00 AM', type: 'note' },
-    { id: '5', label: 'Nap on a lily pad', startDate: 'Jun 7, 2025 10:00 AM', endDate: 'Jun 7, 2025 1:00 PM', type: 'period' },
-    { id: '6', label: 'Synchronized swimming', date: 'Jun 7, 2025 2:30 PM', type: 'event' },
-    { id: '7', label: 'Sunset waddle', date: 'Jun 7, 2025 6:00 PM', type: 'event' },
-    { id: '8', label: 'Quack-aroke night', startDate: 'Jun 7, 2025 8:00 PM', endDate: 'Jun 7, 2025 11:00 PM', type: 'period' },
-    { id: '9', label: 'Zzz under the stars', date: 'Jun 7, 2025 11:30 PM', type: 'event' },
-    { id: '10', label: 'Lazy Sunday', startDate: 'Jun 8, 2025 9:00 AM', endDate: 'Jun 8, 2025 5:00 PM', type: 'period' },
-    { id: '11', label: 'Back to the grind', date: 'Jun 9, 2025 7:00 AM', type: 'note' },
-  ]);
+  const [items, setItems] = useState<TimelineItem[]>(loadItems);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(ASPECT_RATIOS[1]); // 3:2
   const [contentScale, setContentScale] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
@@ -29,7 +44,13 @@ const App: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [compressGaps, setCompressGaps] = useState(false);
   const [avoidSplit, setAvoidSplit] = useState(true);
+  const [compactDates, setCompactDates] = useState(true);
   const [showAddPanel, setShowAddPanel] = useState(true);
+
+  // Persist items to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
 
   const mainPreviewRef = useRef<HTMLDivElement>(null);
   const hiddenContainerRef = useRef<HTMLDivElement>(null);
@@ -169,6 +190,8 @@ const App: React.FC = () => {
         setCompressGaps={setCompressGaps}
         avoidSplit={avoidSplit}
         setAvoidSplit={setAvoidSplit}
+        compactDates={compactDates}
+        setCompactDates={setCompactDates}
       />
 
       {/* Main Preview Area */}
@@ -200,6 +223,7 @@ const App: React.FC = () => {
                   canvasHeight={baseHeight}
                   compressGaps={compressGaps}
                   avoidSplit={avoidSplit}
+                  compactDates={compactDates}
                   onItemUpdate={handleItemUpdate}
                 />
               ) : (
@@ -210,6 +234,7 @@ const App: React.FC = () => {
                   canvasWidth={baseWidth}
                   canvasHeight={baseHeight}
                   compressGaps={compressGaps}
+                  compactDates={compactDates}
                   onItemUpdate={handleItemUpdate}
                 />
               )}
@@ -323,6 +348,7 @@ const App: React.FC = () => {
           canvasHeight={baseHeight}
           compressGaps={compressGaps}
           avoidSplit={avoidSplit}
+          compactDates={compactDates}
         />
       </div>
     </div>

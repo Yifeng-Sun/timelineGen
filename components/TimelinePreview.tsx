@@ -7,6 +7,11 @@ import { parseDate, formatDate, getMinMaxDates } from '../utils/dateUtils';
 const MIN_PERIOD_WIDTH = 60;
 const GAP_COMPRESS_RATIO = 3; // gaps > 3x median get compressed
 
+// Approximate text width in SVG pixels
+function estimateTextWidth(text: string, fontSize: number, bold = false): number {
+  return text.length * fontSize * (bold ? 0.62 : 0.52);
+}
+
 interface TimelinePreviewProps {
   items: TimelineItem[];
   theme: Theme;
@@ -18,7 +23,51 @@ interface TimelinePreviewProps {
   canvasHeight?: number;
   compressGaps?: boolean;
   avoidSplit?: boolean;
+  compactDates?: boolean;
   onItemUpdate?: (id: string, changes: Partial<{ label: string }>) => void;
+}
+
+// Detect if all items fall within a single day or year
+function detectDateSpan(items: TimelineItem[]): { mode: 'time' | 'monthday' | 'full'; label: string } {
+  const dates: Date[] = [];
+  items.forEach(item => {
+    if (item.type === 'event' || item.type === 'note') {
+      dates.push(parseDate(item.date));
+    } else {
+      dates.push(parseDate(item.startDate));
+      dates.push(parseDate(item.endDate));
+    }
+  });
+  if (dates.length === 0) return { mode: 'full', label: '' };
+
+  const allSameDay = dates.every(d =>
+    d.getFullYear() === dates[0].getFullYear() &&
+    d.getMonth() === dates[0].getMonth() &&
+    d.getDate() === dates[0].getDate()
+  );
+  if (allSameDay) {
+    return {
+      mode: 'time',
+      label: dates[0].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+  }
+
+  const allSameYear = dates.every(d => d.getFullYear() === dates[0].getFullYear());
+  if (allSameYear) {
+    return { mode: 'monthday', label: String(dates[0].getFullYear()) };
+  }
+
+  return { mode: 'full', label: '' };
+}
+
+function formatCompact(date: Date, mode: 'time' | 'monthday' | 'full'): string {
+  if (mode === 'time') {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+  if (mode === 'monthday') {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  return formatDate(date);
 }
 
 // Build a compressed scale that shrinks long empty gaps
@@ -114,10 +163,18 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   canvasHeight = 800,
   compressGaps = false,
   avoidSplit = false,
+  compactDates = false,
   onItemUpdate,
 }) => {
   const s = contentScale;
   const { min, max } = useMemo(() => getMinMaxDates(items), [items]);
+
+  // Smart date formatting
+  const { dateMode, dateLabel, fmt } = useMemo(() => {
+    if (!compactDates) return { dateMode: 'full' as const, dateLabel: '', fmt: (d: Date) => formatDate(d) };
+    const span = detectDateSpan(items);
+    return { dateMode: span.mode, dateLabel: span.label, fmt: (d: Date) => formatCompact(d, span.mode) };
+  }, [items, compactDates]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -157,23 +214,6 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
     return { xScale: (d: Date) => linear(d), gapBreaks: [] as number[] };
   }, [items, min, max, rangeStart, rangeEnd, compressGaps]);
 
-  // Snap x so the item doesn't straddle a slide boundary
-  const snapToSlide = (x: number, halfWidth: number): number => {
-    if (!avoidSplit || !exportMode || totalSlices <= 1) return x;
-    for (let i = 1; i < totalSlices; i++) {
-      const boundary = i * canvasWidth;
-      const left = x - halfWidth;
-      const right = x + halfWidth;
-      if (left < boundary && right > boundary) {
-        // Push to the side with more room
-        return (boundary - left < right - boundary)
-          ? boundary - halfWidth - 4
-          : boundary + halfWidth + 4;
-      }
-    }
-    return x;
-  };
-
   const getItemDate = (item: TimelineItem): Date => {
     if (item.type === 'event' || item.type === 'note') return parseDate(item.date);
     return parseDate(item.startDate);
@@ -185,6 +225,148 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
 
   const editable = !!onItemUpdate;
   const y = actualHeight / 2;
+
+  // --- Layout computation: dynamic sizing + collision avoidance ---
+  const layoutMap = useMemo(() => {
+    const snap = (x: number, hw: number): number => {
+      if (!avoidSplit || !exportMode || totalSlices <= 1) return x;
+      for (let i = 1; i < totalSlices; i++) {
+        const boundary = i * canvasWidth;
+        if (x - hw < boundary && x + hw > boundary) {
+          return (boundary - (x - hw) < (x + hw) - boundary)
+            ? boundary - hw - 4
+            : boundary + hw + 4;
+        }
+      }
+      return x;
+    };
+
+    interface LayoutEntry {
+      side: -1 | 1;
+      yExtra: number;
+      rawX: number;   // true timeline position (marker dot goes here)
+      cx: number;     // label center (may be shifted to avoid overlaps)
+      halfW: number;
+      // Band = distance from timeline where label content lives [bandStart, bandStart+bandHeight]
+      bandStart: number;
+      bandHeight: number;
+      x1?: number;
+      x2?: number;
+    }
+
+    // Band definitions match the ACTUAL rendering positions (distance from y)
+    // Events:  connector 100*s, gap 10*s, box 50*s → top: [110, 160], bottom: [110, 160]
+    // Periods: top label at 45, date at 65+~7 → [38, 72]; bottom label at 55-7, date at 75+7 → [48, 82]
+    // Notes:   top label at 66+, date at 80+ → [62, 90]; bottom label at 84-, date at 98- → [70, 100]
+    const bandDefs = {
+      event:  { start: 110 * s, height: 55 * s },
+      period: { start: 36 * s, height: 40 * s },
+      note:   { top: { start: 58 * s, height: 36 * s }, bottom: { start: 66 * s, height: 36 * s } },
+    };
+
+    const entries: { id: string; entry: LayoutEntry }[] = [];
+
+    sortedItems.forEach((item, idx) => {
+      const side: -1 | 1 = idx % 2 === 0 ? -1 : 1;
+
+      if (item.type === 'event') {
+        const rawX = xScale(parseDate(item.date));
+        const labelW = estimateTextWidth(item.label, 14 * s, true);
+        const dateW = estimateTextWidth(fmt(parseDate(item.date)), 11 * s);
+        const halfW = Math.max(labelW, dateW, 100 * s) / 2 + 12 * s;
+        const cx = snap(rawX, halfW);
+        entries.push({ id: item.id, entry: {
+          side, yExtra: 0, rawX, cx, halfW,
+          bandStart: bandDefs.event.start, bandHeight: bandDefs.event.height,
+        }});
+      } else if (item.type === 'period') {
+        let x1 = xScale(parseDate(item.startDate));
+        const x2raw = xScale(parseDate(item.endDate));
+        const spanW = Math.max(x2raw - x1, MIN_PERIOD_WIDTH * s);
+        let x2 = x1 + spanW;
+        const mid = (x1 + x2) / 2;
+        const halfSpan = Math.max(spanW / 2, 80 * s);
+        const snapped = snap(mid, halfSpan);
+        const shift = snapped - mid;
+        x1 += shift; x2 += shift;
+
+        const labelW = estimateTextWidth(item.label, 14 * s, true);
+        const dateStr = `${fmt(parseDate(item.startDate))} - ${fmt(parseDate(item.endDate))}`;
+        const dateW = estimateTextWidth(dateStr, 11 * s);
+        const halfW = Math.max(labelW, dateW, x2 - x1) / 2 + 8 * s;
+
+        entries.push({ id: item.id, entry: {
+          // Periods always render labels above, so use top side for collision
+          side: -1 as (-1 | 1), yExtra: 0, rawX: (x1 + x2) / 2, cx: (x1 + x2) / 2, halfW,
+          bandStart: bandDefs.period.start, bandHeight: bandDefs.period.height,
+          x1, x2,
+        }});
+      } else {
+        const rawX = xScale(parseDate(item.date));
+        const labelW = estimateTextWidth(item.label, 12 * s);
+        const dateW = estimateTextWidth(fmt(parseDate(item.date)), 9 * s);
+        const halfW = Math.max(labelW, dateW) / 2 + 8 * s;
+        const cx = snap(rawX, halfW);
+        const bd = side === -1 ? bandDefs.note.top : bandDefs.note.bottom;
+        entries.push({ id: item.id, entry: {
+          side, yExtra: 0, rawX, cx, halfW,
+          bandStart: bd.start, bandHeight: bd.height,
+        }});
+      }
+    });
+
+    // Collision resolution per side — multiple passes for cascading pushes
+    for (const sideVal of [-1, 1] as (-1 | 1)[]) {
+      const sideEntries = entries.filter(e => e.entry.side === sideVal);
+      sideEntries.sort((a, b) => a.entry.cx - b.entry.cx);
+      for (let i = 0; i < sideEntries.length; i++) {
+        for (let j = 0; j < i; j++) {
+          const a = sideEntries[j].entry;
+          const b = sideEntries[i].entry;
+          if (a.cx + a.halfW <= b.cx - b.halfW) continue;
+          if (b.cx + b.halfW <= a.cx - a.halfW) continue;
+          const aEnd = a.bandStart + a.yExtra + a.bandHeight;
+          const bStart = b.bandStart + b.yExtra;
+          if (bStart < aEnd) {
+            b.yExtra = aEnd - b.bandStart + 10 * s;
+          }
+        }
+      }
+    }
+
+    // Horizontal shift: push event/note labels so they don't overlap period bars on the timeline
+    const periodBars = entries.filter(e => e.entry.x1 != null);
+    for (const e of entries) {
+      if (e.entry.x1 != null) continue; // skip periods themselves
+      const ent = e.entry;
+      for (const p of periodBars) {
+        const px1 = p.entry.x1!;
+        const px2 = p.entry.x2!;
+        const labelLeft = ent.cx - ent.halfW;
+        const labelRight = ent.cx + ent.halfW;
+        // Only shift if the label box overlaps the period bar AND the marker is outside the bar
+        if (labelRight > px1 && labelLeft < px2 && (ent.rawX < px1 || ent.rawX > px2)) {
+          if (ent.rawX < px1) {
+            // Marker is to the left of the period — shift label left so its right edge clears px1
+            const newCx = px1 - ent.halfW - 4 * s;
+            if (newCx > ent.rawX - ent.halfW * 2) { // don't shift too far
+              ent.cx = newCx;
+            }
+          } else {
+            // Marker is to the right — shift label right so its left edge clears px2
+            const newCx = px2 + ent.halfW + 4 * s;
+            if (newCx < ent.rawX + ent.halfW * 2) {
+              ent.cx = newCx;
+            }
+          }
+        }
+      }
+    }
+
+    const map = new Map<string, LayoutEntry>();
+    entries.forEach(e => map.set(e.id, e.entry));
+    return map;
+  }, [sortedItems, xScale, s, avoidSplit, exportMode, totalSlices, canvasWidth, fmt]);
 
   return (
     <div className="relative bg-white shadow-xl rounded-lg overflow-hidden flex items-center justify-center border border-slate-200">
@@ -230,32 +412,34 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
         })}
 
         {/* Periods */}
-        {sortedItems.filter(i => i.type === 'period').map((item: any, idx) => {
-          let x1 = xScale(parseDate(item.startDate));
-          let x2raw = xScale(parseDate(item.endDate));
-          const spanWidth = Math.max(x2raw - x1, MIN_PERIOD_WIDTH * s);
-          let x2 = x1 + spanWidth;
-
-          // Snap: use the center of the period for boundary check
-          const mid = (x1 + x2) / 2;
-          const halfW = Math.max(spanWidth / 2, 80 * s);
-          const snapped = snapToSlide(mid, halfW);
-          const shift = snapped - mid;
-          x1 += shift;
-          x2 += shift;
-
+        {sortedItems.filter(i => i.type === 'period').map((item: any) => {
+          const layout = layoutMap.get(item.id)!;
+          const x1 = layout.x1!;
+          const x2 = layout.x2!;
+          const cx = layout.cx;
+          const isTop = layout.side === -1;
+          const yExtra = layout.yExtra;
           const height = 60 * s;
           const isEditing = editingId === item.id;
+          // Always render period annotations above the bar
+          const labelY = y - (45 * s + yExtra);
+          const dateY = y - (65 * s + yExtra);
           return (
             <g key={item.id}>
               <rect
                 x={x1} y={y - height / 2} width={x2 - x1} height={height}
                 fill={theme.secondary} rx={30 * s} opacity="0.6"
               />
+              <line
+                x1={cx} y1={y - height / 2}
+                x2={cx} y2={labelY + 8 * s}
+                stroke={theme.accent} strokeWidth={1 * s} opacity="0.35"
+                strokeDasharray={`${4 * s},${3 * s}`}
+              />
               {isEditing ? (
                 <foreignObject
-                  x={(x1 + x2) / 2 - 75 * s}
-                  y={y + (idx % 2 === 0 ? 55 * s : -45 * s) - 14 * s}
+                  x={cx - 75 * s}
+                  y={labelY - 14 * s}
                   width={150 * s} height={24 * s}
                 >
                   <input
@@ -270,43 +454,50 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
                 </foreignObject>
               ) : (
                 <text
-                  x={(x1 + x2) / 2} y={y + (idx % 2 === 0 ? 55 * s : -45 * s)}
+                  x={cx} y={labelY}
                   textAnchor="middle" fontSize={14 * s} fontWeight="600" fill={theme.accent}
                   className="select-none" style={editable ? { cursor: 'pointer' } : undefined}
                   onClick={() => startEdit(item.id, item.label)}
                 >{item.label}</text>
               )}
               <text
-                x={(x1 + x2) / 2} y={y + (idx % 2 === 0 ? 75 * s : -65 * s)}
+                x={cx} y={dateY}
                 textAnchor="middle" fontSize={11 * s} fill={theme.muted} className="select-none"
               >
-                {formatDate(parseDate(item.startDate))} - {formatDate(parseDate(item.endDate))}
+                {fmt(parseDate(item.startDate))} - {fmt(parseDate(item.endDate))}
               </text>
             </g>
           );
         })}
 
         {/* Events */}
-        {sortedItems.filter(i => i.type === 'event').map((item: any, idx) => {
-          const rawX = xScale(parseDate(item.date));
-          const x = snapToSlide(rawX, 75 * s);
-          const isTop = idx % 2 === 0;
+        {sortedItems.filter(i => i.type === 'event').map((item: any) => {
+          const layout = layoutMap.get(item.id)!;
+          const markerX = layout.rawX;
+          const labelX = layout.cx;
+          const isTop = layout.side === -1;
+          const halfW = layout.halfW;
+          const boxW = halfW * 2;
+          const boxH = 50 * s;
+          const connLen = 100 * s + layout.yExtra;
+          const connEnd = isTop ? y - connLen : y + connLen;
+          const boxY = isTop ? y - connLen - boxH - 10 * s : y + connLen + 10 * s;
           const isEditing = editingId === item.id;
 
           return (
             <g key={item.id}>
-              <line x1={x} y1={y} x2={x} y2={isTop ? y - 100 * s : y + 100 * s}
+              <line x1={markerX} y1={y} x2={markerX} y2={connEnd}
                 stroke={theme.primary} strokeWidth={1.5 * s} opacity="0.5" />
-              <circle cx={x} cy={y} r={8 * s} fill={theme.bg} stroke={theme.primary} strokeWidth={3 * s} />
-              <g transform={`translate(${x - 75 * s}, ${isTop ? y - 160 * s : y + 110 * s})`}>
+              <circle cx={markerX} cy={y} r={8 * s} fill={theme.bg} stroke={theme.primary} strokeWidth={3 * s} />
+              <g transform={`translate(${labelX - halfW}, ${boxY})`}>
                 <rect
-                  width={150 * s} height={50 * s} rx={12 * s} fill={theme.bg}
+                  width={boxW} height={boxH} rx={12 * s} fill={theme.bg}
                   stroke={editable ? theme.primary : theme.secondary} strokeWidth={1 * s}
                   opacity={editable ? 0.8 : 1} style={editable ? { cursor: 'pointer' } : undefined}
                   onClick={() => startEdit(item.id, item.label)}
                 />
                 {isEditing ? (
-                  <foreignObject x={4 * s} y={4 * s} width={142 * s} height={22 * s}>
+                  <foreignObject x={4 * s} y={4 * s} width={boxW - 8 * s} height={22 * s}>
                     <input
                       ref={inputRef} value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
@@ -319,14 +510,14 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
                   </foreignObject>
                 ) : (
                   <text
-                    x={75 * s} y={20 * s} textAnchor="middle" fontSize={14 * s} fontWeight="bold"
+                    x={halfW} y={20 * s} textAnchor="middle" fontSize={14 * s} fontWeight="bold"
                     fill={theme.text} className="select-none"
                     style={editable ? { cursor: 'pointer' } : undefined}
                     onClick={() => startEdit(item.id, item.label)}
                   >{item.label}</text>
                 )}
-                <text x={75 * s} y={38 * s} textAnchor="middle" fontSize={11 * s} fill={theme.muted} className="select-none">
-                  {formatDate(parseDate(item.date))}
+                <text x={halfW} y={38 * s} textAnchor="middle" fontSize={11 * s} fill={theme.muted} className="select-none">
+                  {fmt(parseDate(item.date))}
                 </text>
               </g>
             </g>
@@ -334,24 +525,26 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
         })}
 
         {/* Notes */}
-        {sortedItems.filter(i => i.type === 'note').map((item: any, idx) => {
-          const rawX = xScale(parseDate(item.date));
-          const x = snapToSlide(rawX, 70 * s);
-          const isTop = idx % 2 === 0;
+        {sortedItems.filter(i => i.type === 'note').map((item: any) => {
+          const layout = layoutMap.get(item.id)!;
+          const markerX = layout.rawX;
+          const labelX = layout.cx;
+          const isTop = layout.side === -1;
+          const yExtra = layout.yExtra;
           const isEditing = editingId === item.id;
-          const noteY = isTop ? y - 70 * s : y + 70 * s;
+          const noteY = isTop ? y - (70 * s + yExtra) : y + (70 * s + yExtra);
           const d = 5 * s;
 
           return (
             <g key={item.id}>
-              <line x1={x} y1={y} x2={x} y2={noteY}
+              <line x1={markerX} y1={y} x2={markerX} y2={noteY}
                 stroke={theme.muted} strokeWidth={1 * s}
                 strokeDasharray={`${3 * s},${3 * s}`} opacity="0.6" />
               <polygon
-                points={`${x},${y - d} ${x + d},${y} ${x},${y + d} ${x - d},${y}`}
+                points={`${markerX},${y - d} ${markerX + d},${y} ${markerX},${y + d} ${markerX - d},${y}`}
                 fill={theme.muted} opacity="0.7" />
               {isEditing ? (
-                <foreignObject x={x - 70 * s} y={noteY - 10 * s} width={140 * s} height={20 * s}>
+                <foreignObject x={labelX - 70 * s} y={noteY - 10 * s} width={140 * s} height={20 * s}>
                   <input
                     ref={inputRef} value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
@@ -364,19 +557,27 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
                 </foreignObject>
               ) : (
                 <text
-                  x={x} y={noteY + (isTop ? -4 * s : 14 * s)}
+                  x={labelX} y={noteY + (isTop ? -4 * s : 14 * s)}
                   textAnchor="middle" fontSize={12 * s} fontStyle="italic" fill={theme.muted}
                   className="select-none" style={editable ? { cursor: 'pointer' } : undefined}
                   onClick={() => startEdit(item.id, item.label)}
                 >{item.label}</text>
               )}
               <text
-                x={x} y={noteY + (isTop ? -18 * s : 28 * s)}
+                x={labelX} y={noteY + (isTop ? -18 * s : 28 * s)}
                 textAnchor="middle" fontSize={9 * s} fill={theme.muted} opacity="0.6" className="select-none"
-              >{formatDate(parseDate(item.date))}</text>
+              >{fmt(parseDate(item.date))}</text>
             </g>
           );
         })}
+
+        {/* Compact date context label */}
+        {dateLabel && (
+          <text
+            x={sliceIndex * canvasWidth + 20} y={30 * s}
+            textAnchor="start" fontSize={14 * s} fontWeight="600" fill={theme.muted} opacity="0.6"
+          >{dateLabel}</text>
+        )}
 
         {/* Branding */}
         <text

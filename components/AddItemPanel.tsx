@@ -15,25 +15,38 @@ const typeOptions: { value: AddItemType; label: string }[] = [
   { value: 'note', label: 'Note' },
 ];
 
+// Convert datetime-local value to a readable date string
+function formatDateTimeValue(val: string): string {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+}
+
 const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
   const [addType, setAddType] = useState<AddItemType>('event');
   const [addName, setAddName] = useState('');
   const [addDate, setAddDate] = useState('');
   const [addEndDate, setAddEndDate] = useState('');
 
-  const canSubmit = addName.trim() && addDate.trim() && (addType !== 'period' || addEndDate.trim());
+  const canSubmit = addName.trim() && addDate && (addType !== 'period' || addEndDate);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     const id = Math.random().toString(36).substr(2, 9);
+    const dateStr = formatDateTimeValue(addDate);
+    const endDateStr = formatDateTimeValue(addEndDate);
     let newItem: TimelineItem;
 
     if (addType === 'event') {
-      newItem = { id, label: addName.trim(), date: addDate.trim(), type: 'event' };
+      newItem = { id, label: addName.trim(), date: dateStr, type: 'event' };
     } else if (addType === 'period') {
-      newItem = { id, label: addName.trim(), startDate: addDate.trim(), endDate: addEndDate.trim(), type: 'period' };
+      newItem = { id, label: addName.trim(), startDate: dateStr, endDate: endDateStr, type: 'period' };
     } else {
-      newItem = { id, label: addName.trim(), date: addDate.trim(), type: 'note' };
+      newItem = { id, label: addName.trim(), date: dateStr, type: 'note' };
     }
 
     onAdd(newItem);
@@ -46,6 +59,8 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
     if (e.key === 'Enter' && canSubmit) handleSubmit();
     if (e.key === 'Escape') onClose();
   };
+
+  const inputClass = "w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none";
 
   return (
     <div className="absolute bottom-16 right-4 z-40 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 space-y-3 animate-in">
@@ -77,25 +92,31 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
         onChange={(e) => setAddName(e.target.value)}
         onKeyDown={handleKeyDown}
         autoFocus
-        className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        className={inputClass}
       />
-      <input
-        type="text"
-        placeholder={addType === 'period' ? 'Start date (e.g. Jan 1, 2024)' : 'Date (e.g. Jan 1, 2024)'}
-        value={addDate}
-        onChange={(e) => setAddDate(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-      />
-      {addType === 'period' && (
+      <div>
+        <label className="block text-[10px] text-slate-400 mb-1">
+          {addType === 'period' ? 'Start' : 'Date & Time'}
+        </label>
         <input
-          type="text"
-          placeholder="End date (e.g. Jun 30, 2024)"
-          value={addEndDate}
-          onChange={(e) => setAddEndDate(e.target.value)}
+          type="datetime-local"
+          value={addDate}
+          onChange={(e) => setAddDate(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className={inputClass}
         />
+      </div>
+      {addType === 'period' && (
+        <div>
+          <label className="block text-[10px] text-slate-400 mb-1">End</label>
+          <input
+            type="datetime-local"
+            value={addEndDate}
+            onChange={(e) => setAddEndDate(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={inputClass}
+          />
+        </div>
       )}
       <button
         onClick={handleSubmit}

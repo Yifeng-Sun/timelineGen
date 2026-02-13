@@ -35,6 +35,8 @@ interface ControlPanelProps {
   setCompressGaps: (v: boolean) => void;
   avoidSplit: boolean;
   setAvoidSplit: (v: boolean) => void;
+  compactDates: boolean;
+  setCompactDates: (v: boolean) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -55,6 +57,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   setCompressGaps,
   avoidSplit,
   setAvoidSplit,
+  compactDates,
+  setCompactDates,
 }) => {
   const [jsonInput, setJsonInput] = useState(() => itemsToJson(items));
 
@@ -143,6 +147,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             Compress long gaps
           </label>
           <p className="text-[10px] text-slate-400 mt-1 ml-5">Shrink empty stretches between items</p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={compactDates}
+              onChange={(e) => setCompactDates(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Smart date labels
+          </label>
+          <p className="text-[10px] text-slate-400 mt-1 ml-5">Show time only within a day, omit year within a year</p>
         </div>
 
         <div>
