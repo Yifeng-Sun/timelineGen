@@ -210,9 +210,27 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <div
           ref={previewAreaRef}
-          className="flex-1 overflow-auto p-4 md:p-8 flex items-center justify-center"
+          className="flex-1 overflow-auto p-4 md:p-8 flex items-center justify-center relative"
           onWheel={handleWheel}
         >
+          {showCarouselPreview && (
+            <>
+              <button
+                onClick={() => setCurrentSlide((s: number) => Math.max(0, s - 1))}
+                disabled={currentSlide === 0}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 border border-slate-200 shadow-md flex items-center justify-center text-slate-500 hover:bg-white hover:text-slate-800 transition disabled:opacity-0 disabled:pointer-events-none"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button
+                onClick={() => setCurrentSlide((s: number) => Math.min(exportSlices - 1, s + 1))}
+                disabled={currentSlide === exportSlices - 1}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 border border-slate-200 shadow-md flex items-center justify-center text-slate-500 hover:bg-white hover:text-slate-800 transition disabled:opacity-0 disabled:pointer-events-none"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </>
+          )}
           <div
             className="transition-all duration-500 ease-in-out"
             style={{
