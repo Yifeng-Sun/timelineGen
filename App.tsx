@@ -224,8 +224,9 @@ const App: React.FC = () => {
         {items.length > 0 && (
           <button
             onClick={handleClear}
-            className="absolute top-3 right-3 z-20 px-3 py-1 rounded-lg text-xs font-medium bg-white/80 border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition shadow-sm"
+            className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 hover:text-red-700 transition shadow-sm flex items-center gap-1.5"
           >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
             Clear canvas
           </button>
         )}
