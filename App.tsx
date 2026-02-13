@@ -312,7 +312,9 @@ const App: React.FC = () => {
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!showCarouselPreview) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Don't start drag tracking when interacting with editing inputs
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
     dragRef.current = { startX: e.clientX, startY: e.clientY, locked: null, pointerId: e.pointerId };
     setIsDragging(false);
     setDragOffset(0);
@@ -325,6 +327,10 @@ const App: React.FC = () => {
     // Lock direction after 10px of movement
     if (dragRef.current.locked === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
       dragRef.current.locked = Math.abs(dx) > Math.abs(dy); // true = horizontal
+      // Only capture pointer when we confirm a horizontal drag
+      if (dragRef.current.locked) {
+        (e.currentTarget as HTMLElement).setPointerCapture(dragRef.current.pointerId);
+      }
     }
     if (dragRef.current.locked !== true) return;
     setIsDragging(true);
