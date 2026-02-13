@@ -32,14 +32,14 @@ function loadItems(): TimelineItem[] {
 
 const App: React.FC = () => {
   const [items, setItems] = useState<TimelineItem[]>(loadItems);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(ASPECT_RATIOS[1]); // 3:2
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(ASPECT_RATIOS[5]); // 9:16
   const [contentScale, setContentScale] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [theme, setTheme] = useState<Theme>(THEMES.modern);
   const [font, setFont] = useState<FontOption>(FONTS[0]);
   const [exportSlices, setExportSlices] = useState<number>(3);
   const [isExporting, setIsExporting] = useState(false);
-  const [showCarouselPreview, setShowCarouselPreview] = useState(false);
+  const [showCarouselPreview, setShowCarouselPreview] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [compressGaps, setCompressGaps] = useState(false);
   const [avoidSplit, setAvoidSplit] = useState(false);
