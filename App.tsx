@@ -45,6 +45,7 @@ const App: React.FC = () => {
   const [avoidSplit, setAvoidSplit] = useState(false);
   const [compactDates, setCompactDates] = useState(true);
   const [showAddPanel, setShowAddPanel] = useState(true);
+  const [clearedItems, setClearedItems] = useState<TimelineItem[] | null>(null);
 
   // Persist items to localStorage on every change
   useEffect(() => {
@@ -83,6 +84,18 @@ const App: React.FC = () => {
   const handleItemDelete = useCallback((id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
   }, []);
+
+  const handleClear = useCallback(() => {
+    setClearedItems(items);
+    setItems([]);
+  }, [items]);
+
+  const handleUndo = useCallback(() => {
+    if (clearedItems) {
+      setItems(clearedItems);
+      setClearedItems(null);
+    }
+  }, [clearedItems]);
 
   const handleExport = async (format: 'png' | 'svg' | 'carousel') => {
     setIsExporting(true);
@@ -208,6 +221,14 @@ const App: React.FC = () => {
 
       {/* Main Preview Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
+        {items.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="absolute top-3 right-3 z-20 px-3 py-1 rounded-lg text-xs font-medium bg-white/80 border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition shadow-sm"
+          >
+            Clear canvas
+          </button>
+        )}
         <div
           ref={previewAreaRef}
           className="flex-1 overflow-auto p-4 md:p-8 flex items-center justify-center relative"
@@ -358,6 +379,24 @@ const App: React.FC = () => {
             <p className="text-[10px] text-slate-400 ml-2">Resolution: {baseWidth}x{baseHeight}</p>
           </div>
         </div>
+
+        {clearedItems && (
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-3 animate-bounce-once">
+            <span className="text-sm">Canvas cleared</span>
+            <button
+              onClick={handleUndo}
+              className="text-sm font-bold text-blue-300 hover:text-blue-100 transition"
+            >
+              Undo
+            </button>
+            <button
+              onClick={() => setClearedItems(null)}
+              className="text-slate-400 hover:text-white transition text-lg leading-none"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {isExporting && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center">

@@ -218,7 +218,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       </section>
 
-      <div className="text-center pt-2">
+      <div className="text-center pt-2 flex items-center justify-center gap-2">
+        <a href="https://yifengsun.com" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-blue-500 transition">
+          yifengsun.com
+        </a>
+        <span className="text-slate-300">|</span>
         <a href="mailto:ys@yifengsun.com?subject=Duckline%20Bug%20Report" className="text-xs text-slate-400 hover:text-blue-500 transition">
           Throw me a bug
         </a>
