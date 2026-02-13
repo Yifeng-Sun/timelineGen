@@ -23,6 +23,7 @@ interface ControlPanelProps {
   setCompactDates: (v: boolean) => void;
   font: FontOption;
   setFont: (f: FontOption) => void;
+  hasOverlappingPeriods: boolean;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -46,6 +47,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   setCompactDates,
   font,
   setFont,
+  hasOverlappingPeriods,
 }) => {
   return (
     <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-full md:w-96">
@@ -79,6 +81,54 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               );
             })}
           </div>
+        </div>
+
+        <div className="relative bg-purple-50/60 border border-purple-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-semibold text-slate-700">Social Media Carousel</label>
+            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="6" width="6" height="12" rx="1" />
+              <rect x="9" y="4" width="6" height="16" rx="1" />
+              <rect x="16" y="6" width="6" height="12" rx="1" />
+            </svg>
+          </div>
+          <button
+            onClick={() => setShowCarouselPreview(!showCarouselPreview)}
+            className={`w-full py-2 rounded-lg text-sm font-medium border transition ${
+              showCarouselPreview
+                ? 'bg-purple-100 border-purple-500 text-purple-700'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Carousel Mode {showCarouselPreview ? 'On' : 'Off'}
+          </button>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={exportSlices}
+              onChange={(e) => setExportSlices(parseInt(e.target.value))}
+              className="flex-1 accent-purple-600"
+            />
+            <span className="text-sm font-bold text-purple-600 w-8">{exportSlices}x</span>
+          </div>
+          <p className="text-[10px] text-slate-400">How many ponds to swim across</p>
+          <label className={`flex items-center gap-2 text-xs font-medium ${hasOverlappingPeriods ? 'text-slate-400 cursor-not-allowed' : 'text-slate-600 cursor-pointer'}`}>
+            <input
+              type="checkbox"
+              checked={avoidSplit}
+              onChange={(e) => setAvoidSplit(e.target.checked)}
+              disabled={hasOverlappingPeriods}
+              className="rounded border-slate-300 disabled:opacity-40"
+            />
+            No duck left behind
+          </label>
+          {hasOverlappingPeriods ? (
+            <p className="text-[10px] text-amber-500 ml-5">Unavailable — overlapping periods on the timeline.</p>
+          ) : (
+            <p className="text-[10px] text-slate-400 ml-5">Keep labels from getting split across slides. Increase slide count for best results.</p>
+          )}
         </div>
 
         <div>
@@ -154,49 +204,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             ))}
           </div>
           <p className="text-[10px] text-slate-400 mt-1">Pick your flock's handwriting</p>
-        </div>
-
-        <div className="relative bg-purple-50/60 border border-purple-200 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="block text-sm font-semibold text-slate-700">Social Media Carousel</label>
-            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="6" width="6" height="12" rx="1" />
-              <rect x="9" y="4" width="6" height="16" rx="1" />
-              <rect x="16" y="6" width="6" height="12" rx="1" />
-            </svg>
-          </div>
-          <button
-            onClick={() => setShowCarouselPreview(!showCarouselPreview)}
-            className={`w-full py-2 rounded-lg text-sm font-medium border transition ${
-              showCarouselPreview
-                ? 'bg-purple-100 border-purple-500 text-purple-700'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            Carousel Mode {showCarouselPreview ? 'On' : 'Off'}
-          </button>
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min="1"
-              max="10"
-              value={exportSlices}
-              onChange={(e) => setExportSlices(parseInt(e.target.value))}
-              className="flex-1 accent-purple-600"
-            />
-            <span className="text-sm font-bold text-purple-600 w-8">{exportSlices}x</span>
-          </div>
-          <p className="text-[10px] text-slate-400">How many ponds to swim across</p>
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={avoidSplit}
-              onChange={(e) => setAvoidSplit(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            No duck left behind
-          </label>
-          <p className="text-[10px] text-slate-400 ml-5">Keep labels from getting split across slides. Increase slide count for best results.</p>
         </div>
       </section>
 

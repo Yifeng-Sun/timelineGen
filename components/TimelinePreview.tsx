@@ -231,7 +231,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   const y = actualHeight * 0.58;
 
   // --- Layout computation: dynamic sizing + collision avoidance ---
-  const layoutMap = useMemo(() => {
+  const layoutResult = useMemo(() => {
     const snap = (x: number, hw: number): number => {
       if (!avoidSplit || !exportMode || totalSlices <= 1) return x;
       for (let i = 1; i < totalSlices; i++) {
@@ -321,6 +321,8 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
       allSorted.sort((a, b) => a.entry.rawX - b.entry.rawX);
 
       const minGap = 4 * s;
+      const maxRight = canvasWidth * totalSlices - 20 * s;
+      const minLeft = 20 * s;
 
       // Forward pass (left-to-right): push items right if they overlap predecessor
       for (let i = 0; i < allSorted.length - 1; i++) {
@@ -328,13 +330,14 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
         const next = allSorted[i + 1].entry;
         const needed = curr.cx + curr.halfW + minGap + next.halfW;
         if (next.cx < needed) {
-          let newCx = needed;
+          let newCx = Math.min(needed, maxRight - next.halfW);
           for (let b = 1; b < totalSlices; b++) {
             const boundary = b * canvasWidth;
             if (newCx - next.halfW < boundary && newCx + next.halfW > boundary) {
               newCx = boundary + next.halfW + 4;
             }
           }
+          newCx = Math.min(newCx, maxRight - next.halfW);
           const delta = newCx - next.cx;
           next.cx = newCx;
           if (next.x1 != null) { next.x1! += delta; next.x2! += delta; }
@@ -347,13 +350,14 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
         const prev = allSorted[i - 1].entry;
         const needed = curr.cx - curr.halfW - minGap - prev.halfW;
         if (prev.cx > needed) {
-          let newCx = needed;
+          let newCx = Math.max(needed, minLeft + prev.halfW);
           for (let b = 1; b < totalSlices; b++) {
             const boundary = b * canvasWidth;
             if (newCx - prev.halfW < boundary && newCx + prev.halfW > boundary) {
               newCx = boundary - prev.halfW - 4;
             }
           }
+          newCx = Math.max(newCx, minLeft + prev.halfW);
           const delta = newCx - prev.cx;
           prev.cx = newCx;
           if (prev.x1 != null) { prev.x1! += delta; prev.x2! += delta; }
@@ -421,8 +425,24 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
 
     const map = new Map<string, LayoutEntry>();
     entries.forEach(e => map.set(e.id, e.entry));
-    return map;
+    return { map, entries };
   }, [sortedItems, xScale, s, avoidSplit, exportMode, totalSlices, canvasWidth, fmt]);
+
+  const layoutMap = layoutResult.map;
+
+  // Compute timeline line extent from laid-out items
+  const lineExtent = useMemo(() => {
+    let lo = xScale(min);
+    let hi = xScale(max);
+    for (const e of layoutResult.entries) {
+      const ent = e.entry;
+      const left = ent.x1 != null ? Math.min(ent.x1, ent.cx - ent.halfW) : ent.cx - ent.halfW;
+      const right = ent.x2 != null ? Math.max(ent.x2, ent.cx + ent.halfW) : ent.cx + ent.halfW;
+      lo = Math.min(lo, left);
+      hi = Math.max(hi, right);
+    }
+    return { lo, hi };
+  }, [layoutResult, xScale, min, max]);
 
   return (
     <div className="relative bg-white shadow-xl rounded-lg overflow-hidden flex items-center justify-center border border-slate-200">
@@ -446,12 +466,12 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
 
         {/* Main Timeline Line */}
         <line
-          x1={xScale(min)} y1={y} x2={xScale(max)} y2={y}
+          x1={lineExtent.lo} y1={y} x2={lineExtent.hi} y2={y}
           stroke={theme.primary} strokeWidth={4 * s}
           strokeLinecap="round" strokeDasharray={`${8 * s},${8 * s}`} opacity="0.3"
         />
         <line
-          x1={xScale(min)} y1={y} x2={xScale(max)} y2={y}
+          x1={lineExtent.lo} y1={y} x2={lineExtent.hi} y2={y}
           stroke="url(#mainLineGradient)" strokeWidth={2 * s} strokeLinecap="round"
         />
 

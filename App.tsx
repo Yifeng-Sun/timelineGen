@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES, FontOption, FONTS } from './types';
 import TimelinePreview from './components/TimelinePreview';
 import ControlPanel from './components/ControlPanel';
@@ -46,6 +46,30 @@ const App: React.FC = () => {
   const [compactDates, setCompactDates] = useState(true);
   const [showAddPanel, setShowAddPanel] = useState(true);
   const [clearedItems, setClearedItems] = useState<TimelineItem[] | null>(null);
+  const [showOverlapWarning, setShowOverlapWarning] = useState(false);
+
+  // Detect overlapping periods
+  const hasOverlappingPeriods = useMemo(() => {
+    const periods = items.filter((i): i is Extract<TimelineItem, { type: 'period' }> => i.type === 'period');
+    for (let i = 0; i < periods.length; i++) {
+      for (let j = i + 1; j < periods.length; j++) {
+        const a0 = new Date(periods[i].startDate).getTime();
+        const a1 = new Date(periods[i].endDate).getTime();
+        const b0 = new Date(periods[j].startDate).getTime();
+        const b1 = new Date(periods[j].endDate).getTime();
+        if (a0 < b1 && b0 < a1) return true;
+      }
+    }
+    return false;
+  }, [items]);
+
+  // Auto-disable avoidSplit when overlapping periods appear
+  useEffect(() => {
+    if (hasOverlappingPeriods && avoidSplit) {
+      setAvoidSplit(false);
+      setShowOverlapWarning(true);
+    }
+  }, [hasOverlappingPeriods]);
 
   // Persist items to localStorage on every change
   useEffect(() => {
@@ -217,6 +241,7 @@ const App: React.FC = () => {
         setAvoidSplit={setAvoidSplit}
         compactDates={compactDates}
         setCompactDates={setCompactDates}
+        hasOverlappingPeriods={hasOverlappingPeriods}
       />
 
       {/* Main Preview Area */}
@@ -396,6 +421,32 @@ const App: React.FC = () => {
             >
               &times;
             </button>
+          </div>
+        )}
+
+        {showOverlapWarning && (
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">No duck left behind disabled</h3>
+                  <p className="text-sm text-slate-500 mt-1">Your timeline has overlapping periods.</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                When periods overlap, their labels share the same timeline space. The slide-splitting algorithm needs a clear left-to-right order to push labels apart, but overlapping periods create circular dependencies &mdash; pushing one label out of a boundary can shove an overlapping neighbor back in. This makes a clean split impossible to guarantee.
+              </p>
+              <p className="text-xs text-slate-400">Remove the overlap to re-enable this feature.</p>
+              <button
+                onClick={() => setShowOverlapWarning(false)}
+                className="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition"
+              >
+                Got it
+              </button>
+            </div>
           </div>
         )}
 
