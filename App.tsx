@@ -138,7 +138,7 @@ const App: React.FC = () => {
 
         // Update branding text position for this slice
         const textElements = clonedSvg.querySelectorAll('text');
-        const branding = Array.from(textElements).find(t => t.textContent?.includes('Chronicle Flow'));
+        const branding = Array.from(textElements).find(t => t.textContent?.includes('Duckline'));
         if (branding) {
           branding.setAttribute('x', String(i * baseWidth + baseWidth - 20));
         }
@@ -298,7 +298,7 @@ const App: React.FC = () => {
         <div className="flex justify-between items-center px-4 py-2 bg-white border-t border-slate-200">
           <div className="flex gap-2">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {items.length} Items
+              {items.length} Ducks
             </span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-800">
               {aspectRatio.label}
@@ -333,8 +333,8 @@ const App: React.FC = () => {
         {isExporting && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-blue-900 font-bold text-lg animate-pulse">Generating your sequence...</p>
-            <p className="text-slate-500 text-sm">Preparing high-resolution slides</p>
+            <p className="text-blue-900 font-bold text-lg animate-pulse">Hatching your masterpiece...</p>
+            <p className="text-slate-500 text-sm">Preening high-resolution feathers</p>
           </div>
         )}
       </main>

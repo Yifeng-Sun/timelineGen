@@ -107,7 +107,7 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
   return (
     <div className="absolute bottom-16 right-4 z-40 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 space-y-3 animate-in">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800">Add Item</h3>
+        <h3 className="text-sm font-bold text-slate-800">New Duckling</h3>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 leading-none" title="Minimize">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="12" x2="13" y2="12" /></svg>
         </button>
@@ -131,7 +131,7 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
 
       <input
         type="text"
-        placeholder="Name"
+        placeholder="What happened at the pond?"
         value={addName}
         onChange={(e) => setAddName(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -182,7 +182,7 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
           </svg>
-          Edit as JSON
+          Quack in JSON
         </button>
         {showJson && (
           <div className="mt-2 space-y-2">

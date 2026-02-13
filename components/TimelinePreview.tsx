@@ -633,7 +633,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
         <text
           x={sliceIndex * canvasWidth + canvasWidth - 20} y={canvasHeight - 20}
           textAnchor="end" fontSize={10 * s} fill={theme.muted} opacity="0.5" className="italic"
-        >Generated with Chronicle Flow</text>
+        >Made with Duckline</text>
       </svg>
     </div>
   );
