@@ -282,24 +282,20 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
           bandStart: bandDefs.event.start, bandHeight: bandDefs.event.height,
         }});
       } else if (item.type === 'period') {
-        let x1 = xScale(parseDate(item.startDate));
+        const x1 = xScale(parseDate(item.startDate));
         const x2raw = xScale(parseDate(item.endDate));
         const spanW = Math.max(x2raw - x1, MIN_PERIOD_WIDTH * s);
-        let x2 = x1 + spanW;
-        const mid = (x1 + x2) / 2;
-        const halfSpan = Math.max(spanW / 2, 80 * s);
-        const snapped = snap(mid, halfSpan);
-        const shift = snapped - mid;
-        x1 += shift; x2 += shift;
+        const x2 = x1 + spanW;
 
         const labelW = estimateTextWidth(item.label, 14 * s, true);
         const dateStr = `${fmt(parseDate(item.startDate))} - ${fmt(parseDate(item.endDate))}`;
         const dateW = estimateTextWidth(dateStr, 11 * s);
         const halfW = Math.max(labelW, dateW, x2 - x1) / 2 + 8 * s;
+        const labelCx = (x1 + x2) / 2;
 
         entries.push({ id: item.id, entry: {
           // Periods always render labels above, so use top side for collision
-          side: -1 as (-1 | 1), yExtra: 0, rawX: (x1 + x2) / 2, cx: (x1 + x2) / 2, halfW,
+          side: -1 as (-1 | 1), yExtra: 0, rawX: (x1 + x2) / 2, cx: labelCx, halfW,
           bandStart: bandDefs.period.start, bandHeight: bandDefs.period.height,
           x1, x2,
         }});
@@ -337,30 +333,45 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
     }
 
     // Horizontal shift: push event/note labels so they don't overlap period bars on the timeline
-    const periodBars = entries.filter(e => e.entry.x1 != null);
-    for (const e of entries) {
-      if (e.entry.x1 != null) continue; // skip periods themselves
-      const ent = e.entry;
-      for (const p of periodBars) {
-        const px1 = p.entry.x1!;
-        const px2 = p.entry.x2!;
-        const labelLeft = ent.cx - ent.halfW;
-        const labelRight = ent.cx + ent.halfW;
-        // Only shift if the label box overlaps the period bar AND the marker is outside the bar
-        if (labelRight > px1 && labelLeft < px2 && (ent.rawX < px1 || ent.rawX > px2)) {
-          if (ent.rawX < px1) {
-            // Marker is to the left of the period — shift label left so its right edge clears px1
-            const newCx = px1 - ent.halfW - 4 * s;
-            if (newCx > ent.rawX - ent.halfW * 2) { // don't shift too far
-              ent.cx = newCx;
-            }
-          } else {
-            // Marker is to the right — shift label right so its left edge clears px2
-            const newCx = px2 + ent.halfW + 4 * s;
-            if (newCx < ent.rawX + ent.halfW * 2) {
-              ent.cx = newCx;
+    // (only in normal mode — in export mode, snap handles boundary avoidance)
+    if (!exportMode) {
+      const periodBars = entries.filter(e => e.entry.x1 != null);
+      for (const e of entries) {
+        if (e.entry.x1 != null) continue; // skip periods themselves
+        const ent = e.entry;
+        for (const p of periodBars) {
+          const px1 = p.entry.x1!;
+          const px2 = p.entry.x2!;
+          const labelLeft = ent.cx - ent.halfW;
+          const labelRight = ent.cx + ent.halfW;
+          // Only shift if the label box overlaps the period bar AND the marker is outside the bar
+          if (labelRight > px1 && labelLeft < px2 && (ent.rawX < px1 || ent.rawX > px2)) {
+            if (ent.rawX < px1) {
+              // Marker is to the left of the period — shift label left so its right edge clears px1
+              const newCx = px1 - ent.halfW - 4 * s;
+              if (newCx > ent.rawX - ent.halfW * 2) { // don't shift too far
+                ent.cx = newCx;
+              }
+            } else {
+              // Marker is to the right — shift label right so its left edge clears px2
+              const newCx = px2 + ent.halfW + 4 * s;
+              if (newCx < ent.rawX + ent.halfW * 2) {
+                ent.cx = newCx;
+              }
             }
           }
+        }
+      }
+    }
+
+    // Bind marker dot to the same slide as its label
+    if (exportMode && totalSlices > 1) {
+      for (const e of entries) {
+        const ent = e.entry;
+        const rawSlide = Math.floor(ent.rawX / canvasWidth);
+        const cxSlide = Math.floor(ent.cx / canvasWidth);
+        if (rawSlide !== cxSlide) {
+          ent.rawX = ent.cx;
         }
       }
     }
