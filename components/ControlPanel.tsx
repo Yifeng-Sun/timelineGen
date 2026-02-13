@@ -50,7 +50,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   hasOverlappingPeriods,
 }) => {
   return (
-    <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-full md:w-96">
+    <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-80 md:w-96">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Duckline</h1>
         <p className="text-slate-500 text-sm">Get your ducks in a row</p>

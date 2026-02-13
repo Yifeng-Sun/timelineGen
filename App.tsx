@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const [showAddPanel, setShowAddPanel] = useState(true);
   const [clearedItems, setClearedItems] = useState<TimelineItem[] | null>(null);
   const [showOverlapWarning, setShowOverlapWarning] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Detect overlapping periods (period-period or event/note inside a period)
   const hasOverlappingPeriods = useMemo(() => {
@@ -230,8 +231,32 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-100 overflow-hidden">
+      {/* Sidebar toggle button (small screens) */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-40 w-10 h-10 rounded-lg bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
+        title="Open settings"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+
+      {/* Sidebar backdrop (small screens) */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/30 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Controls */}
-      <ControlPanel
+      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 md:relative md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="md:hidden absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-slate-200/80 flex items-center justify-center text-slate-500 hover:bg-slate-300 transition"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <ControlPanel
         itemCount={items.length}
         aspectRatio={aspectRatio}
         setAspectRatio={setAspectRatio}
@@ -254,6 +279,7 @@ const App: React.FC = () => {
         setCompactDates={setCompactDates}
         hasOverlappingPeriods={hasOverlappingPeriods}
       />
+      </div>
 
       {/* Main Preview Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
