@@ -233,7 +233,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </a>
         <span className="text-slate-300">|</span>
         <a href="mailto:ys@yifengsun.com?subject=Duckline%20Bug%20Report" className="text-xs text-slate-400 hover:text-blue-500 transition">
-          Throw me a bug
+          throw me a bug
         </a>
       </div>
     </div>
