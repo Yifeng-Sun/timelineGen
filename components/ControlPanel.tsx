@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AspectRatio, ASPECT_RATIOS, Theme, THEMES } from '../types';
+import { AspectRatio, ASPECT_RATIOS, Theme, THEMES, FontOption, FONTS } from '../types';
 
 interface ControlPanelProps {
   itemCount: number;
@@ -21,6 +21,8 @@ interface ControlPanelProps {
   setAvoidSplit: (v: boolean) => void;
   compactDates: boolean;
   setCompactDates: (v: boolean) => void;
+  font: FontOption;
+  setFont: (f: FontOption) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -42,6 +44,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   setAvoidSplit,
   compactDates,
   setCompactDates,
+  font,
+  setFont,
 }) => {
   return (
     <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-full md:w-96">
@@ -136,6 +140,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
 
         <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Quill</label>
+          <div className="grid grid-cols-2 gap-2">
+            {FONTS.map((f) => (
+              <button
+                key={f.label}
+                onClick={() => setFont(f)}
+                className={`p-2 rounded-lg border text-xs font-medium transition text-left ${font.label === f.label ? 'border-blue-500 bg-blue-50' : 'bg-white border-slate-200'}`}
+                style={{ fontFamily: f.family }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">Pick your flock's handwriting</p>
+        </div>
+
+        <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Social Media Carousel</label>
           <div className="flex items-center gap-3">
             <input
@@ -158,7 +179,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
             No duck left behind
           </label>
-          <p className="text-[10px] text-slate-400 mt-1 ml-5">Keep labels from getting split across slides</p>
+          <p className="text-[10px] text-slate-400 mt-1 ml-5">Keep labels from getting split across slides. Increase slide count for best results.</p>
           <button
             onClick={() => setShowCarouselPreview(!showCarouselPreview)}
             className={`mt-2 w-full py-2 rounded-lg text-sm font-medium border transition ${
@@ -192,10 +213,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             className="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-lg flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            Launch the Flock
+            Download Social Media Carousel
           </button>
         </div>
       </section>
+
+      <div className="text-center pt-2">
+        <a href="mailto:ys@yifengsun.com?subject=Duckline%20Bug%20Report" className="text-xs text-slate-400 hover:text-blue-500 transition">
+          Throw me a bug
+        </a>
+      </div>
     </div>
   );
 };

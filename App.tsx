@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES } from './types';
+import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES, FontOption, FONTS } from './types';
 import TimelinePreview from './components/TimelinePreview';
 import ControlPanel from './components/ControlPanel';
 import AddItemPanel from './components/AddItemPanel';
@@ -38,12 +38,13 @@ const App: React.FC = () => {
   const [contentScale, setContentScale] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [theme, setTheme] = useState<Theme>(THEMES.modern);
+  const [font, setFont] = useState<FontOption>(FONTS[0]);
   const [exportSlices, setExportSlices] = useState<number>(3);
   const [isExporting, setIsExporting] = useState(false);
   const [showCarouselPreview, setShowCarouselPreview] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [compressGaps, setCompressGaps] = useState(false);
-  const [avoidSplit, setAvoidSplit] = useState(true);
+  const [avoidSplit, setAvoidSplit] = useState(false);
   const [compactDates, setCompactDates] = useState(true);
   const [showAddPanel, setShowAddPanel] = useState(true);
 
@@ -88,10 +89,17 @@ const App: React.FC = () => {
   const handleExport = async (format: 'png' | 'svg' | 'carousel') => {
     setIsExporting(true);
 
+    const cleanSvg = (svg: SVGSVGElement): SVGSVGElement => {
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.querySelectorAll('.delete-btn').forEach(el => el.remove());
+      return clone;
+    };
+
     if (format === 'svg') {
       const svgElement = mainPreviewRef.current?.querySelector('svg');
       if (svgElement) {
-        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const cleaned = cleanSvg(svgElement);
+        const svgData = new XMLSerializer().serializeToString(cleaned);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
         const link = document.createElement('a');
@@ -102,7 +110,8 @@ const App: React.FC = () => {
     } else if (format === 'png') {
       const svgElement = mainPreviewRef.current?.querySelector('svg');
       if (svgElement) {
-        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const cleaned = cleanSvg(svgElement);
+        const svgData = new XMLSerializer().serializeToString(cleaned);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
 
@@ -184,6 +193,8 @@ const App: React.FC = () => {
         setContentScale={setContentScale}
         theme={theme}
         setTheme={setTheme}
+        font={font}
+        setFont={setFont}
         exportSlices={exportSlices}
         setExportSlices={setExportSlices}
         onExport={handleExport}
@@ -227,6 +238,7 @@ const App: React.FC = () => {
                   compressGaps={compressGaps}
                   avoidSplit={avoidSplit}
                   compactDates={compactDates}
+                  font={font}
                   onItemUpdate={handleItemUpdate}
                   onItemDelete={handleItemDelete}
                 />
@@ -239,6 +251,7 @@ const App: React.FC = () => {
                   canvasHeight={baseHeight}
                   compressGaps={compressGaps}
                   compactDates={compactDates}
+                  font={font}
                   onItemUpdate={handleItemUpdate}
                   onItemDelete={handleItemDelete}
                 />
@@ -353,6 +366,7 @@ const App: React.FC = () => {
           compressGaps={compressGaps}
           avoidSplit={avoidSplit}
           compactDates={compactDates}
+          font={font}
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-import { TimelineItem, Theme } from '../types';
+import { TimelineItem, Theme, FontOption } from '../types';
 import { parseDate, formatDate, getMinMaxDates } from '../utils/dateUtils';
 
 const MIN_PERIOD_WIDTH = 60;
@@ -24,6 +24,7 @@ interface TimelinePreviewProps {
   compressGaps?: boolean;
   avoidSplit?: boolean;
   compactDates?: boolean;
+  font?: FontOption;
   onItemUpdate?: (id: string, changes: Partial<{ label: string }>) => void;
   onItemDelete?: (id: string) => void;
 }
@@ -165,6 +166,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   compressGaps = false,
   avoidSplit = false,
   compactDates = false,
+  font,
   onItemUpdate,
   onItemDelete,
 }) => {
@@ -226,7 +228,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   );
 
   const editable = !!onItemUpdate;
-  const y = actualHeight / 2;
+  const y = actualHeight * 0.58;
 
   // --- Layout computation: dynamic sizing + collision avoidance ---
   const layoutMap = useMemo(() => {
@@ -313,6 +315,52 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
       }
     });
 
+    // Propagate snap pushes to maintain chronological label ordering
+    if (avoidSplit && exportMode && totalSlices > 1) {
+      const allSorted = [...entries];
+      allSorted.sort((a, b) => a.entry.rawX - b.entry.rawX);
+
+      const minGap = 4 * s;
+
+      // Forward pass (left-to-right): push items right if they overlap predecessor
+      for (let i = 0; i < allSorted.length - 1; i++) {
+        const curr = allSorted[i].entry;
+        const next = allSorted[i + 1].entry;
+        const needed = curr.cx + curr.halfW + minGap + next.halfW;
+        if (next.cx < needed) {
+          let newCx = needed;
+          for (let b = 1; b < totalSlices; b++) {
+            const boundary = b * canvasWidth;
+            if (newCx - next.halfW < boundary && newCx + next.halfW > boundary) {
+              newCx = boundary + next.halfW + 4;
+            }
+          }
+          const delta = newCx - next.cx;
+          next.cx = newCx;
+          if (next.x1 != null) { next.x1! += delta; next.x2! += delta; }
+        }
+      }
+
+      // Backward pass (right-to-left): push items left if they overlap successor
+      for (let i = allSorted.length - 1; i > 0; i--) {
+        const curr = allSorted[i].entry;
+        const prev = allSorted[i - 1].entry;
+        const needed = curr.cx - curr.halfW - minGap - prev.halfW;
+        if (prev.cx > needed) {
+          let newCx = needed;
+          for (let b = 1; b < totalSlices; b++) {
+            const boundary = b * canvasWidth;
+            if (newCx - prev.halfW < boundary && newCx + prev.halfW > boundary) {
+              newCx = boundary - prev.halfW - 4;
+            }
+          }
+          const delta = newCx - prev.cx;
+          prev.cx = newCx;
+          if (prev.x1 != null) { prev.x1! += delta; prev.x2! += delta; }
+        }
+      }
+    }
+
     // Collision resolution per side — multiple passes for cascading pushes
     for (const sideVal of [-1, 1] as (-1 | 1)[]) {
       const sideEntries = entries.filter(e => e.entry.side === sideVal);
@@ -364,15 +412,10 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
       }
     }
 
-    // Bind marker dot to the same slide as its label
+    // Bind marker dot to its label (snap or propagation may have moved cx)
     if (exportMode && totalSlices > 1) {
       for (const e of entries) {
-        const ent = e.entry;
-        const rawSlide = Math.floor(ent.rawX / canvasWidth);
-        const cxSlide = Math.floor(ent.cx / canvasWidth);
-        if (rawSlide !== cxSlide) {
-          ent.rawX = ent.cx;
-        }
+        e.entry.rawX = e.entry.cx;
       }
     }
 
@@ -388,9 +431,12 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
         height={canvasHeight}
         viewBox={`${sliceIndex * canvasWidth} 0 ${canvasWidth} ${canvasHeight}`}
         className="w-full h-full"
-        style={{ backgroundColor: theme.bg }}
+        style={{ backgroundColor: theme.bg, fontFamily: font?.family }}
       >
         <defs>
+          {font?.import && (
+            <style>{`@import url('${font.import}');`}</style>
+          )}
           <linearGradient id="mainLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor={theme.primary} stopOpacity="0.2" />
             <stop offset="50%" stopColor={theme.primary} stopOpacity="1" />

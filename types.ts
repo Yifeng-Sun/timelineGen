@@ -86,3 +86,18 @@ export const THEMES: Record<string, Theme> = {
     muted: '#065f46'
   }
 };
+
+export interface FontOption {
+  label: string;
+  family: string;
+  import?: string; // Google Fonts @import URL
+}
+
+export const FONTS: FontOption[] = [
+  { label: 'Inter', family: "'Inter', sans-serif", import: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" },
+  { label: 'Playfair', family: "'Playfair Display', serif", import: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" },
+  { label: 'Space Mono', family: "'Space Mono', monospace", import: "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" },
+  { label: 'Caveat', family: "'Caveat', cursive", import: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap" },
+  { label: 'Georgia', family: "Georgia, serif" },
+  { label: 'System', family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+];
