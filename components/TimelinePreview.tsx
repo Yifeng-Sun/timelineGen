@@ -25,6 +25,7 @@ interface TimelinePreviewProps {
   avoidSplit?: boolean;
   compactDates?: boolean;
   onItemUpdate?: (id: string, changes: Partial<{ label: string }>) => void;
+  onItemDelete?: (id: string) => void;
 }
 
 // Detect if all items fall within a single day or year
@@ -165,6 +166,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   avoidSplit = false,
   compactDates = false,
   onItemUpdate,
+  onItemDelete,
 }) => {
   const s = contentScale;
   const { min, max } = useMemo(() => getMinMaxDates(items), [items]);
@@ -436,36 +438,49 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
                 stroke={theme.accent} strokeWidth={1 * s} opacity="0.35"
                 strokeDasharray={`${4 * s},${3 * s}`}
               />
-              {isEditing ? (
-                <foreignObject
-                  x={cx - 75 * s}
-                  y={labelY - 14 * s}
-                  width={150 * s} height={24 * s}
-                >
-                  <input
-                    ref={inputRef} value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={commitEdit}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null); }}
-                    style={{ width: '100%', height: '100%', fontSize: `${14 * s}px`, fontWeight: 600,
-                      textAlign: 'center', border: `1.5px solid ${theme.primary}`, borderRadius: `${4 * s}px`,
-                      outline: 'none', background: theme.bg, color: theme.accent, padding: 0 }}
-                  />
-                </foreignObject>
-              ) : (
+              <g className="annotation">
+                {isEditing ? (
+                  <foreignObject
+                    x={cx - 75 * s}
+                    y={labelY - 14 * s}
+                    width={150 * s} height={24 * s}
+                  >
+                    <input
+                      ref={inputRef} value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                      style={{ width: '100%', height: '100%', fontSize: `${14 * s}px`, fontWeight: 600,
+                        textAlign: 'center', border: `1.5px solid ${theme.primary}`, borderRadius: `${4 * s}px`,
+                        outline: 'none', background: theme.bg, color: theme.accent, padding: 0 }}
+                    />
+                  </foreignObject>
+                ) : (
+                  <text
+                    x={cx} y={labelY}
+                    textAnchor="middle" fontSize={14 * s} fontWeight="600" fill={theme.accent}
+                    className="select-none" style={editable ? { cursor: 'pointer' } : undefined}
+                    onClick={() => startEdit(item.id, item.label)}
+                  >{item.label}</text>
+                )}
                 <text
-                  x={cx} y={labelY}
-                  textAnchor="middle" fontSize={14 * s} fontWeight="600" fill={theme.accent}
-                  className="select-none" style={editable ? { cursor: 'pointer' } : undefined}
-                  onClick={() => startEdit(item.id, item.label)}
-                >{item.label}</text>
-              )}
-              <text
-                x={cx} y={dateY}
-                textAnchor="middle" fontSize={11 * s} fill={theme.muted} className="select-none"
-              >
-                {fmt(parseDate(item.startDate))} - {fmt(parseDate(item.endDate))}
-              </text>
+                  x={cx} y={dateY}
+                  textAnchor="middle" fontSize={11 * s} fill={theme.muted} className="select-none"
+                >
+                  {fmt(parseDate(item.startDate))} - {fmt(parseDate(item.endDate))}
+                </text>
+                {onItemDelete && (
+                  <g
+                    transform={`translate(${cx + layout.halfW}, ${dateY - 6 * s})`}
+                    style={{ cursor: 'pointer' }} className="delete-btn"
+                    onClick={() => onItemDelete(item.id)}
+                  >
+                    <circle r={8 * s} fill="#ef4444" opacity="0.85" />
+                    <line x1={-3 * s} y1={-3 * s} x2={3 * s} y2={3 * s} stroke="white" strokeWidth={1.5 * s} strokeLinecap="round" />
+                    <line x1={3 * s} y1={-3 * s} x2={-3 * s} y2={3 * s} stroke="white" strokeWidth={1.5 * s} strokeLinecap="round" />
+                  </g>
+                )}
+              </g>
             </g>
           );
         })}
@@ -489,7 +504,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
               <line x1={markerX} y1={y} x2={markerX} y2={connEnd}
                 stroke={theme.primary} strokeWidth={1.5 * s} opacity="0.5" />
               <circle cx={markerX} cy={y} r={8 * s} fill={theme.bg} stroke={theme.primary} strokeWidth={3 * s} />
-              <g transform={`translate(${labelX - halfW}, ${boxY})`}>
+              <g transform={`translate(${labelX - halfW}, ${boxY})`} className="annotation">
                 <rect
                   width={boxW} height={boxH} rx={12 * s} fill={theme.bg}
                   stroke={editable ? theme.primary : theme.secondary} strokeWidth={1 * s}
@@ -519,6 +534,17 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
                 <text x={halfW} y={38 * s} textAnchor="middle" fontSize={11 * s} fill={theme.muted} className="select-none">
                   {fmt(parseDate(item.date))}
                 </text>
+                {onItemDelete && (
+                  <g
+                    transform={`translate(${boxW - 6 * s}, ${-6 * s})`}
+                    style={{ cursor: 'pointer' }} className="delete-btn"
+                    onClick={(e) => { e.stopPropagation(); onItemDelete(item.id); }}
+                  >
+                    <circle r={8 * s} fill="#ef4444" opacity="0.85" />
+                    <line x1={-3 * s} y1={-3 * s} x2={3 * s} y2={3 * s} stroke="white" strokeWidth={1.5 * s} strokeLinecap="round" />
+                    <line x1={3 * s} y1={-3 * s} x2={-3 * s} y2={3 * s} stroke="white" strokeWidth={1.5 * s} strokeLinecap="round" />
+                  </g>
+                )}
               </g>
             </g>
           );
@@ -543,30 +569,43 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
               <polygon
                 points={`${markerX},${y - d} ${markerX + d},${y} ${markerX},${y + d} ${markerX - d},${y}`}
                 fill={theme.muted} opacity="0.7" />
-              {isEditing ? (
-                <foreignObject x={labelX - 70 * s} y={noteY - 10 * s} width={140 * s} height={20 * s}>
-                  <input
-                    ref={inputRef} value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={commitEdit}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null); }}
-                    style={{ width: '100%', height: '100%', fontSize: `${12 * s}px`, fontStyle: 'italic',
-                      textAlign: 'center', border: `1.5px solid ${theme.primary}`, borderRadius: `${4 * s}px`,
-                      outline: 'none', background: theme.bg, color: theme.muted, padding: 0 }}
-                  />
-                </foreignObject>
-              ) : (
+              <g className="annotation">
+                {isEditing ? (
+                  <foreignObject x={labelX - 70 * s} y={noteY - 10 * s} width={140 * s} height={20 * s}>
+                    <input
+                      ref={inputRef} value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                      style={{ width: '100%', height: '100%', fontSize: `${12 * s}px`, fontStyle: 'italic',
+                        textAlign: 'center', border: `1.5px solid ${theme.primary}`, borderRadius: `${4 * s}px`,
+                        outline: 'none', background: theme.bg, color: theme.muted, padding: 0 }}
+                    />
+                  </foreignObject>
+                ) : (
+                  <text
+                    x={labelX} y={noteY + (isTop ? -4 * s : 14 * s)}
+                    textAnchor="middle" fontSize={12 * s} fontStyle="italic" fill={theme.muted}
+                    className="select-none" style={editable ? { cursor: 'pointer' } : undefined}
+                    onClick={() => startEdit(item.id, item.label)}
+                  >{item.label}</text>
+                )}
                 <text
-                  x={labelX} y={noteY + (isTop ? -4 * s : 14 * s)}
-                  textAnchor="middle" fontSize={12 * s} fontStyle="italic" fill={theme.muted}
-                  className="select-none" style={editable ? { cursor: 'pointer' } : undefined}
-                  onClick={() => startEdit(item.id, item.label)}
-                >{item.label}</text>
-              )}
-              <text
-                x={labelX} y={noteY + (isTop ? -18 * s : 28 * s)}
-                textAnchor="middle" fontSize={9 * s} fill={theme.muted} opacity="0.6" className="select-none"
-              >{fmt(parseDate(item.date))}</text>
+                  x={labelX} y={noteY + (isTop ? -18 * s : 28 * s)}
+                  textAnchor="middle" fontSize={9 * s} fill={theme.muted} opacity="0.6" className="select-none"
+                >{fmt(parseDate(item.date))}</text>
+                {onItemDelete && (
+                  <g
+                    transform={`translate(${labelX + estimateTextWidth(item.label, 12 * s) / 2 + 10 * s}, ${noteY + (isTop ? -4 * s : 14 * s) - 4 * s})`}
+                    style={{ cursor: 'pointer' }} className="delete-btn"
+                    onClick={() => onItemDelete(item.id)}
+                  >
+                    <circle r={7 * s} fill="#ef4444" opacity="0.85" />
+                    <line x1={-2.5 * s} y1={-2.5 * s} x2={2.5 * s} y2={2.5 * s} stroke="white" strokeWidth={1.5 * s} strokeLinecap="round" />
+                    <line x1={2.5 * s} y1={-2.5 * s} x2={-2.5 * s} y2={2.5 * s} stroke="white" strokeWidth={1.5 * s} strokeLinecap="round" />
+                  </g>
+                )}
+              </g>
             </g>
           );
         })}

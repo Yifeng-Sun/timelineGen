@@ -1,25 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
-import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES } from '../types';
-
-// Convert items array to the JSON editor format
-function itemsToJson(items: TimelineItem[]): string {
-  const obj: Record<string, object> = {};
-  items.forEach(item => {
-    if (item.type === 'event') {
-      obj[item.label] = { type: 'event', date: item.date };
-    } else if (item.type === 'period') {
-      obj[item.label] = { type: 'period', startDate: item.startDate, endDate: item.endDate };
-    } else {
-      obj[item.label] = { type: 'note', date: item.date };
-    }
-  });
-  return JSON.stringify(obj, null, 2);
-}
+import React from 'react';
+import { AspectRatio, ASPECT_RATIOS, Theme, THEMES } from '../types';
 
 interface ControlPanelProps {
-  items: TimelineItem[];
-  setItems: React.Dispatch<React.SetStateAction<TimelineItem[]>>;
+  itemCount: number;
   aspectRatio: AspectRatio;
   setAspectRatio: (ar: AspectRatio) => void;
   contentScale: number;
@@ -40,8 +24,7 @@ interface ControlPanelProps {
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
-  items,
-  setItems,
+  itemCount,
   aspectRatio,
   setAspectRatio,
   contentScale,
@@ -60,54 +43,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   compactDates,
   setCompactDates,
 }) => {
-  const [jsonInput, setJsonInput] = useState(() => itemsToJson(items));
-
-  // Sync jsonInput when items change (e.g. from preview editing)
-  useEffect(() => {
-    setJsonInput(itemsToJson(items));
-  }, [items]);
-
-  const applyJson = () => {
-    try {
-      const data = JSON.parse(jsonInput);
-      const newItems: TimelineItem[] = [];
-      Object.entries(data).forEach(([label, value]: [string, any]) => {
-        const id = Math.random().toString(36).substr(2, 9);
-        if (value.type === 'period') {
-          newItems.push({ id, label, startDate: value.startDate, endDate: value.endDate, type: 'period' });
-        } else if (value.type === 'note') {
-          newItems.push({ id, label, date: value.date, type: 'note' });
-        } else {
-          newItems.push({ id, label, date: value.date, type: 'event' });
-        }
-      });
-      setItems(newItems);
-    } catch (e) {
-      alert("Invalid JSON format. Please check your syntax.");
-    }
-  };
-
   return (
     <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-full md:w-96">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Chronicle Flow</h1>
         <p className="text-slate-500 text-sm">Design your timeline story</p>
       </div>
-
-      <section>
-        <label className="block text-sm font-semibold text-slate-700 mb-2">Events & Periods (JSON)</label>
-        <textarea
-          className="w-full h-48 p-3 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          value={jsonInput}
-          onChange={(e) => setJsonInput(e.target.value)}
-        />
-        <button
-          onClick={applyJson}
-          className="mt-2 w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition shadow-sm"
-        >
-          Update Timeline
-        </button>
-      </section>
 
       <section className="space-y-4">
         <div>

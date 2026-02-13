@@ -81,6 +81,10 @@ const App: React.FC = () => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, ...changes } : item));
   }, []);
 
+  const handleItemDelete = useCallback((id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+
   const handleExport = async (format: 'png' | 'svg' | 'carousel') => {
     setIsExporting(true);
 
@@ -173,8 +177,7 @@ const App: React.FC = () => {
     <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-100 overflow-hidden">
       {/* Sidebar Controls */}
       <ControlPanel
-        items={items}
-        setItems={setItems}
+        itemCount={items.length}
         aspectRatio={aspectRatio}
         setAspectRatio={setAspectRatio}
         contentScale={contentScale}
@@ -225,6 +228,7 @@ const App: React.FC = () => {
                   avoidSplit={avoidSplit}
                   compactDates={compactDates}
                   onItemUpdate={handleItemUpdate}
+                  onItemDelete={handleItemDelete}
                 />
               ) : (
                 <TimelinePreview
@@ -236,6 +240,7 @@ const App: React.FC = () => {
                   compressGaps={compressGaps}
                   compactDates={compactDates}
                   onItemUpdate={handleItemUpdate}
+                  onItemDelete={handleItemDelete}
                 />
               )}
             </div>
@@ -283,9 +288,8 @@ const App: React.FC = () => {
         </button>
         {showAddPanel && (
           <AddItemPanel
-            onAdd={(item) => {
-              setItems(prev => [...prev, item]);
-            }}
+            items={items}
+            setItems={setItems}
             onClose={() => setShowAddPanel(false)}
           />
         )}

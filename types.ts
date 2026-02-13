@@ -71,7 +71,7 @@ export const THEMES: Record<string, Theme> = {
     name: 'Rose Gold',
     bg: '#fff7ed',
     primary: '#fb923c',
-    secondary: '#ffedd5',
+    secondary: '#fed7aa',
     accent: '#ea580c',
     text: '#431407',
     muted: '#9a3412'
@@ -80,7 +80,7 @@ export const THEMES: Record<string, Theme> = {
     name: 'Emerald Forest',
     bg: '#f0fdf4',
     primary: '#10b981',
-    secondary: '#dcfce7',
+    secondary: '#a7f3d0',
     accent: '#047857',
     text: '#064e3b',
     muted: '#065f46'

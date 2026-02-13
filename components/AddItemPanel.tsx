@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TimelineItem } from '../types';
 
 type AddItemType = 'event' | 'period' | 'note';
 
 interface AddItemPanelProps {
-  onAdd: (item: TimelineItem) => void;
+  items: TimelineItem[];
+  setItems: React.Dispatch<React.SetStateAction<TimelineItem[]>>;
   onClose: () => void;
 }
 
@@ -26,11 +27,32 @@ function formatDateTimeValue(val: string): string {
   });
 }
 
-const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
+// Convert items array to the JSON editor format
+function itemsToJson(items: TimelineItem[]): string {
+  const obj: Record<string, object> = {};
+  items.forEach(item => {
+    if (item.type === 'event') {
+      obj[item.label] = { type: 'event', date: item.date };
+    } else if (item.type === 'period') {
+      obj[item.label] = { type: 'period', startDate: item.startDate, endDate: item.endDate };
+    } else {
+      obj[item.label] = { type: 'note', date: item.date };
+    }
+  });
+  return JSON.stringify(obj, null, 2);
+}
+
+const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose }) => {
   const [addType, setAddType] = useState<AddItemType>('event');
   const [addName, setAddName] = useState('');
   const [addDate, setAddDate] = useState('');
   const [addEndDate, setAddEndDate] = useState('');
+  const [showJson, setShowJson] = useState(false);
+  const [jsonInput, setJsonInput] = useState(() => itemsToJson(items));
+
+  useEffect(() => {
+    setJsonInput(itemsToJson(items));
+  }, [items]);
 
   const canSubmit = addName.trim() && addDate && (addType !== 'period' || addEndDate);
 
@@ -49,10 +71,30 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
       newItem = { id, label: addName.trim(), date: dateStr, type: 'note' };
     }
 
-    onAdd(newItem);
+    setItems(prev => [...prev, newItem]);
     setAddName('');
     setAddDate('');
     setAddEndDate('');
+  };
+
+  const applyJson = () => {
+    try {
+      const data = JSON.parse(jsonInput);
+      const newItems: TimelineItem[] = [];
+      Object.entries(data).forEach(([label, value]: [string, any]) => {
+        const id = Math.random().toString(36).substr(2, 9);
+        if (value.type === 'period') {
+          newItems.push({ id, label, startDate: value.startDate, endDate: value.endDate, type: 'period' });
+        } else if (value.type === 'note') {
+          newItems.push({ id, label, date: value.date, type: 'note' });
+        } else {
+          newItems.push({ id, label, date: value.date, type: 'event' });
+        }
+      });
+      setItems(newItems);
+    } catch (e) {
+      alert("Invalid JSON format. Please check your syntax.");
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -66,7 +108,9 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
     <div className="absolute bottom-16 right-4 z-40 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 space-y-3 animate-in">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-slate-800">Add Item</h3>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 leading-none" title="Minimize">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="12" x2="13" y2="12" /></svg>
+        </button>
       </div>
 
       <div className="flex gap-1">
@@ -125,6 +169,37 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ onAdd, onClose }) => {
       >
         Add {addType.charAt(0).toUpperCase() + addType.slice(1)}
       </button>
+
+      {/* Collapsible JSON editor */}
+      <div className="border-t border-slate-200 pt-2">
+        <button
+          onClick={() => setShowJson(!showJson)}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition w-full"
+        >
+          <svg
+            className={`w-3 h-3 transition-transform ${showJson ? 'rotate-90' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+          </svg>
+          Edit as JSON
+        </button>
+        {showJson && (
+          <div className="mt-2 space-y-2">
+            <textarea
+              className="w-full h-40 p-2 text-[10px] font-mono bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={jsonInput}
+              onChange={(e) => setJsonInput(e.target.value)}
+            />
+            <button
+              onClick={applyJson}
+              className="w-full bg-slate-900 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-slate-800 transition shadow-sm"
+            >
+              Update Timeline
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
