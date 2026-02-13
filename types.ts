@@ -14,9 +14,29 @@ export type TimelinePeriod = {
   type: 'period';
 };
 
-export type TimelineItem = TimelineEvent | TimelinePeriod;
+export type TimelineNote = {
+  id: string;
+  label: string;
+  date: string;
+  type: 'note';
+};
 
-export type Orientation = 'landscape' | 'portrait';
+export type TimelineItem = TimelineEvent | TimelinePeriod | TimelineNote;
+
+export interface AspectRatio {
+  label: string;
+  width: number;
+  height: number;
+}
+
+export const ASPECT_RATIOS: AspectRatio[] = [
+  { label: '16:9', width: 16, height: 9 },
+  { label: '3:2', width: 3, height: 2 },
+  { label: '4:3', width: 4, height: 3 },
+  { label: '1:1', width: 1, height: 1 },
+  { label: '4:5', width: 4, height: 5 },
+  { label: '9:16', width: 9, height: 16 },
+];
 
 export type Theme = {
   name: string;

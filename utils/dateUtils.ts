@@ -17,7 +17,7 @@ export const getMinMaxDates = (items: any[]) => {
 
   const dates: number[] = [];
   items.forEach(item => {
-    if (item.type === 'event') {
+    if (item.type === 'event' || item.type === 'note') {
       dates.push(parseDate(item.date).getTime());
     } else {
       dates.push(parseDate(item.startDate).getTime());

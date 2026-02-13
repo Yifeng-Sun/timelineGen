@@ -1,36 +1,67 @@
 
-import React, { useState } from 'react';
-import { TimelineItem, Orientation, Theme, THEMES } from '../types';
+import React, { useState, useEffect } from 'react';
+import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES } from '../types';
+
+// Convert items array to the JSON editor format
+function itemsToJson(items: TimelineItem[]): string {
+  const obj: Record<string, object> = {};
+  items.forEach(item => {
+    if (item.type === 'event') {
+      obj[item.label] = { type: 'event', date: item.date };
+    } else if (item.type === 'period') {
+      obj[item.label] = { type: 'period', startDate: item.startDate, endDate: item.endDate };
+    } else {
+      obj[item.label] = { type: 'note', date: item.date };
+    }
+  });
+  return JSON.stringify(obj, null, 2);
+}
 
 interface ControlPanelProps {
   items: TimelineItem[];
   setItems: React.Dispatch<React.SetStateAction<TimelineItem[]>>;
-  orientation: Orientation;
-  setOrientation: (o: Orientation) => void;
+  aspectRatio: AspectRatio;
+  setAspectRatio: (ar: AspectRatio) => void;
+  contentScale: number;
+  setContentScale: (s: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
   exportSlices: number;
   setExportSlices: (n: number) => void;
   onExport: (format: 'png' | 'svg' | 'carousel') => void;
+  showCarouselPreview: boolean;
+  setShowCarouselPreview: (show: boolean) => void;
+  compressGaps: boolean;
+  setCompressGaps: (v: boolean) => void;
+  avoidSplit: boolean;
+  setAvoidSplit: (v: boolean) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
   items,
   setItems,
-  orientation,
-  setOrientation,
+  aspectRatio,
+  setAspectRatio,
+  contentScale,
+  setContentScale,
   theme,
   setTheme,
   exportSlices,
   setExportSlices,
-  onExport
+  onExport,
+  showCarouselPreview,
+  setShowCarouselPreview,
+  compressGaps,
+  setCompressGaps,
+  avoidSplit,
+  setAvoidSplit,
 }) => {
-  const [jsonInput, setJsonInput] = useState(JSON.stringify({
-    "Born": "July 10, 2022",
-    "First Word": "May 15, 2023",
-    "Learning to walk": ["July 30, 2023", "September 10, 2023"],
-    "Preschool": ["September 1, 2025", "June 30, 2026"]
-  }, null, 2));
+  const [jsonInput, setJsonInput] = useState(() => itemsToJson(items));
+
+  // Sync jsonInput when items change (e.g. from preview editing)
+  useEffect(() => {
+    setJsonInput(itemsToJson(items));
+  }, [items]);
 
   const applyJson = () => {
     try {
@@ -38,21 +69,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const newItems: TimelineItem[] = [];
       Object.entries(data).forEach(([label, value]: [string, any]) => {
         const id = Math.random().toString(36).substr(2, 9);
-        if (Array.isArray(value)) {
-          newItems.push({
-            id,
-            label,
-            startDate: value[0],
-            endDate: value[1],
-            type: 'period'
-          });
+        if (value.type === 'period') {
+          newItems.push({ id, label, startDate: value.startDate, endDate: value.endDate, type: 'period' });
+        } else if (value.type === 'note') {
+          newItems.push({ id, label, date: value.date, type: 'note' });
         } else {
-          newItems.push({
-            id,
-            label,
-            date: value,
-            type: 'event'
-          });
+          newItems.push({ id, label, date: value.date, type: 'event' });
         }
       });
       setItems(newItems);
@@ -85,21 +107,58 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
       <section className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Orientation</label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setOrientation('landscape')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition ${orientation === 'landscape' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-slate-200 text-slate-600'}`}
-            >
-              Landscape
-            </button>
-            <button
-              onClick={() => setOrientation('portrait')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition ${orientation === 'portrait' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-slate-200 text-slate-600'}`}
-            >
-              Portrait
-            </button>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Aspect Ratio</label>
+          <div className="flex gap-1.5">
+            {ASPECT_RATIOS.map((ar) => {
+              const maxDim = 28;
+              const scale = Math.min(maxDim / ar.width, maxDim / ar.height);
+              const w = Math.round(ar.width * scale);
+              const h = Math.round(ar.height * scale);
+              const active = aspectRatio.label === ar.label;
+              return (
+                <button
+                  key={ar.label}
+                  title={ar.label}
+                  onClick={() => setAspectRatio(ar)}
+                  className={`flex items-center justify-center p-1.5 rounded-md border transition ${active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                >
+                  <div
+                    style={{ width: w, height: h }}
+                    className={`rounded-sm ${active ? 'bg-blue-500' : 'bg-slate-300'}`}
+                  />
+                </button>
+              );
+            })}
           </div>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={compressGaps}
+              onChange={(e) => setCompressGaps(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Compress long gaps
+          </label>
+          <p className="text-[10px] text-slate-400 mt-1 ml-5">Shrink empty stretches between items</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Content Size <span className="text-blue-600 font-bold ml-1">{contentScale.toFixed(1)}x</span>
+          </label>
+          <input
+            type="range"
+            min="0.5"
+            max="2.0"
+            step="0.1"
+            value={contentScale}
+            onChange={(e) => setContentScale(parseFloat(e.target.value))}
+            className="w-full"
+          />
+          <p className="text-[10px] text-slate-400 mt-1">Scale text, markers, and decorations</p>
         </div>
 
         <div>
@@ -132,6 +191,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <span className="text-sm font-bold text-blue-600 w-8">{exportSlices}x</span>
           </div>
           <p className="text-[10px] text-slate-400 mt-1">Number of slides for seamless Instagram carousel</p>
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={avoidSplit}
+              onChange={(e) => setAvoidSplit(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Keep items within slides
+          </label>
+          <button
+            onClick={() => setShowCarouselPreview(!showCarouselPreview)}
+            className={`mt-2 w-full py-2 rounded-lg text-sm font-medium border transition ${
+              showCarouselPreview
+                ? 'bg-purple-50 border-purple-500 text-purple-700'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Carousel Mode {showCarouselPreview ? 'On' : 'Off'}
+          </button>
         </div>
       </section>
 

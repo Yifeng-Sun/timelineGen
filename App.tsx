@@ -1,33 +1,70 @@
 
-import React, { useState, useCallback, useRef } from 'react';
-import { TimelineItem, Orientation, Theme, THEMES } from './types';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES } from './types';
 import TimelinePreview from './components/TimelinePreview';
 import ControlPanel from './components/ControlPanel';
+import AddItemPanel from './components/AddItemPanel';
 
 const App: React.FC = () => {
   const [items, setItems] = useState<TimelineItem[]>([
-    { id: '1', label: 'Born', date: 'July 10, 2022', type: 'event' },
-    { id: '2', label: 'First Word', date: 'May 15, 2023', type: 'event' },
-    { id: '3', label: 'Learning to walk', startDate: 'July 30, 2023', endDate: 'September 10, 2023', type: 'period' },
-    { id: '4', label: 'Preschool', startDate: 'September 1, 2025', endDate: 'June 30, 2026', type: 'period' },
+    { id: '1', label: 'Alarm quacks', date: 'Jun 7, 2025 6:00 AM', type: 'event' },
+    { id: '2', label: 'Pond yoga', startDate: 'Jun 7, 2025 6:30 AM', endDate: 'Jun 7, 2025 7:15 AM', type: 'period' },
+    { id: '3', label: 'Bread heist at the park', date: 'Jun 7, 2025 8:00 AM', type: 'event' },
+    { id: '4', label: 'Food coma', date: 'Jun 7, 2025 9:00 AM', type: 'note' },
+    { id: '5', label: 'Nap on a lily pad', startDate: 'Jun 7, 2025 10:00 AM', endDate: 'Jun 7, 2025 1:00 PM', type: 'period' },
+    { id: '6', label: 'Synchronized swimming', date: 'Jun 7, 2025 2:30 PM', type: 'event' },
+    { id: '7', label: 'Sunset waddle', date: 'Jun 7, 2025 6:00 PM', type: 'event' },
+    { id: '8', label: 'Quack-aroke night', startDate: 'Jun 7, 2025 8:00 PM', endDate: 'Jun 7, 2025 11:00 PM', type: 'period' },
+    { id: '9', label: 'Zzz under the stars', date: 'Jun 7, 2025 11:30 PM', type: 'event' },
+    { id: '10', label: 'Lazy Sunday', startDate: 'Jun 8, 2025 9:00 AM', endDate: 'Jun 8, 2025 5:00 PM', type: 'period' },
+    { id: '11', label: 'Back to the grind', date: 'Jun 9, 2025 7:00 AM', type: 'note' },
   ]);
-  const [orientation, setOrientation] = useState<Orientation>('landscape');
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(ASPECT_RATIOS[1]); // 3:2
+  const [contentScale, setContentScale] = useState<number>(1);
+  const [zoom, setZoom] = useState<number>(1);
   const [theme, setTheme] = useState<Theme>(THEMES.modern);
   const [exportSlices, setExportSlices] = useState<number>(3);
   const [isExporting, setIsExporting] = useState(false);
+  const [showCarouselPreview, setShowCarouselPreview] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [compressGaps, setCompressGaps] = useState(false);
+  const [avoidSplit, setAvoidSplit] = useState(true);
+  const [showAddPanel, setShowAddPanel] = useState(true);
 
-  // Canvas refs for exporting
+  const mainPreviewRef = useRef<HTMLDivElement>(null);
   const hiddenContainerRef = useRef<HTMLDivElement>(null);
+  const previewAreaRef = useRef<HTMLDivElement>(null);
+
+  // Compute canvas dimensions from aspect ratio
+  const isLandscape = aspectRatio.width >= aspectRatio.height;
+  const baseWidth = isLandscape ? 1200 : Math.round(1200 * (aspectRatio.width / aspectRatio.height));
+  const baseHeight = isLandscape ? Math.round(1200 * (aspectRatio.height / aspectRatio.width)) : 1200;
+
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [exportSlices, showCarouselPreview]);
+
+  // Ctrl+scroll zoom on preview area
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom(prev => {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        return Math.round(Math.min(3.0, Math.max(0.5, prev + delta)) * 10) / 10;
+      });
+    }
+  }, []);
+
+  // Called when a label is edited on the preview
+  const handleItemUpdate = useCallback((id: string, changes: Partial<{ label: string }>) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...changes } : item));
+  }, []);
 
   const handleExport = async (format: 'png' | 'svg' | 'carousel') => {
     setIsExporting(true);
-    
-    // Width/Height logic
-    const baseWidth = orientation === 'landscape' ? 1200 : 800;
-    const baseHeight = orientation === 'landscape' ? 800 : 1200;
 
     if (format === 'svg') {
-      const svgElement = document.querySelector('svg');
+      const svgElement = mainPreviewRef.current?.querySelector('svg');
       if (svgElement) {
         const svgData = new XMLSerializer().serializeToString(svgElement);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -37,45 +74,74 @@ const App: React.FC = () => {
         link.download = `timeline-${new Date().getTime()}.svg`;
         link.click();
       }
-    } else if (format === 'png' || format === 'carousel') {
-      const numSlices = format === 'carousel' ? exportSlices : 1;
-      
-      for (let i = 0; i < numSlices; i++) {
-        // Find the preview SVG for the specific slice
-        // In a real app we'd render this to a temporary off-screen SVG or Canvas
-        // Here we'll simulate the download by grabbing the current SVG
-        const svgElement = document.querySelector('svg');
-        if (!svgElement) continue;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = baseWidth;
-        canvas.height = baseHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-
-        // Since we are creating a "seamless" carousel, we need to draw the specific slice
-        // This is complex in vanilla JS without a library like html2canvas, 
-        // but for this demo, we can use the serialized SVG approach.
-        
-        // We'll simulate a 1-second "generating" feel per slice
-        await new Promise(r => setTimeout(r, 300));
-
-        // For actual PNG generation from SVG:
+    } else if (format === 'png') {
+      const svgElement = mainPreviewRef.current?.querySelector('svg');
+      if (svgElement) {
         const svgData = new XMLSerializer().serializeToString(svgElement);
-        const img = new Image();
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
-        
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0);
-          const pngUrl = canvas.toDataURL('image/png');
-          const link = document.createElement('a');
-          link.href = pngUrl;
-          link.download = `timeline-${format === 'carousel' ? `slide-${i + 1}` : 'full'}.png`;
-          link.click();
-          URL.revokeObjectURL(url);
-        };
-        img.src = url;
+
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = baseWidth;
+            canvas.height = baseHeight;
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(img, 0, 0, baseWidth, baseHeight);
+            const pngUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = pngUrl;
+            link.download = `timeline-full.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+            resolve();
+          };
+          img.src = url;
+        });
+      }
+    } else if (format === 'carousel') {
+      const hiddenSvg = hiddenContainerRef.current?.querySelector('svg');
+      if (!hiddenSvg) {
+        setIsExporting(false);
+        return;
+      }
+
+      for (let i = 0; i < exportSlices; i++) {
+        const clonedSvg = hiddenSvg.cloneNode(true) as SVGSVGElement;
+        clonedSvg.setAttribute('viewBox', `${i * baseWidth} 0 ${baseWidth} ${baseHeight}`);
+
+        // Update branding text position for this slice
+        const textElements = clonedSvg.querySelectorAll('text');
+        const branding = Array.from(textElements).find(t => t.textContent?.includes('Chronicle Flow'));
+        if (branding) {
+          branding.setAttribute('x', String(i * baseWidth + baseWidth - 20));
+        }
+
+        const svgData = new XMLSerializer().serializeToString(clonedSvg);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = baseWidth;
+            canvas.height = baseHeight;
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(img, 0, 0, baseWidth, baseHeight);
+            const pngUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = pngUrl;
+            link.download = `timeline-slide-${i + 1}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+            resolve();
+          };
+          img.src = url;
+        });
+
+        await new Promise(r => setTimeout(r, 300));
       }
     }
 
@@ -88,42 +154,150 @@ const App: React.FC = () => {
       <ControlPanel
         items={items}
         setItems={setItems}
-        orientation={orientation}
-        setOrientation={setOrientation}
+        aspectRatio={aspectRatio}
+        setAspectRatio={setAspectRatio}
+        contentScale={contentScale}
+        setContentScale={setContentScale}
         theme={theme}
         setTheme={setTheme}
         exportSlices={exportSlices}
         setExportSlices={setExportSlices}
         onExport={handleExport}
+        showCarouselPreview={showCarouselPreview}
+        setShowCarouselPreview={setShowCarouselPreview}
+        compressGaps={compressGaps}
+        setCompressGaps={setCompressGaps}
+        avoidSplit={avoidSplit}
+        setAvoidSplit={setAvoidSplit}
       />
 
       {/* Main Preview Area */}
-      <main className="flex-1 overflow-auto p-4 md:p-8 flex items-center justify-center relative">
-        <div 
-          className="transition-all duration-500 ease-in-out transform hover:scale-[1.01]"
-          style={{ 
-            width: orientation === 'landscape' ? 'min(90%, 1200px)' : 'min(70%, 800px)',
-            aspectRatio: orientation === 'landscape' ? '3/2' : '2/3'
-          }}
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        <div
+          ref={previewAreaRef}
+          className="flex-1 overflow-auto p-4 md:p-8 flex items-center justify-center"
+          onWheel={handleWheel}
         >
-          <TimelinePreview
-            items={items}
-            orientation={orientation}
-            theme={theme}
-            canvasWidth={orientation === 'landscape' ? 1200 : 800}
-            canvasHeight={orientation === 'landscape' ? 800 : 1200}
-          />
-          
-          <div className="mt-4 flex justify-between items-center px-2">
-            <div className="flex gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {items.length} Items
-              </span>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-800">
-                {orientation}
-              </span>
+          <div
+            className="transition-all duration-500 ease-in-out"
+            style={{
+              width: isLandscape ? 'min(90%, 1200px)' : `min(70%, ${baseWidth}px)`,
+              aspectRatio: `${aspectRatio.width}/${aspectRatio.height}`,
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+            }}
+          >
+            <div ref={mainPreviewRef}>
+              {showCarouselPreview ? (
+                <TimelinePreview
+                  items={items}
+                  theme={theme}
+                  contentScale={contentScale}
+                  exportMode={true}
+                  sliceIndex={currentSlide}
+                  totalSlices={exportSlices}
+                  canvasWidth={baseWidth}
+                  canvasHeight={baseHeight}
+                  compressGaps={compressGaps}
+                  avoidSplit={avoidSplit}
+                  onItemUpdate={handleItemUpdate}
+                />
+              ) : (
+                <TimelinePreview
+                  items={items}
+                  theme={theme}
+                  contentScale={contentScale}
+                  canvasWidth={baseWidth}
+                  canvasHeight={baseHeight}
+                  compressGaps={compressGaps}
+                  onItemUpdate={handleItemUpdate}
+                />
+              )}
             </div>
-            <p className="text-[10px] text-slate-400">Resolution: {orientation === 'landscape' ? '1200x800' : '800x1200'}</p>
+
+            {showCarouselPreview && (
+              <div className="mt-4 flex items-center justify-center gap-4">
+                <button
+                  onClick={() => setCurrentSlide((s: number) => Math.max(0, s - 1))}
+                  disabled={currentSlide === 0}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  &larr; Prev
+                </button>
+                <div className="flex gap-1.5">
+                  {Array.from({ length: exportSlices }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentSlide(i)}
+                      className={`w-2.5 h-2.5 rounded-full transition ${i === currentSlide ? 'bg-blue-600 scale-125' : 'bg-slate-300 hover:bg-slate-400'}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentSlide((s: number) => Math.min(exportSlices - 1, s + 1))}
+                  disabled={currentSlide === exportSlices - 1}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next &rarr;
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Floating Add Item button + panel */}
+        <button
+          onClick={() => setShowAddPanel(prev => !prev)}
+          className={`fab-radar absolute bottom-16 right-4 z-30 w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl font-bold transition-transform duration-300 ${
+            showAddPanel
+              ? 'bg-slate-600 text-white rotate-45'
+              : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110'
+          }`}
+        >
+          +
+        </button>
+        {showAddPanel && (
+          <AddItemPanel
+            onAdd={(item) => {
+              setItems(prev => [...prev, item]);
+            }}
+            onClose={() => setShowAddPanel(false)}
+          />
+        )}
+
+        {/* Status bar with zoom controls */}
+        <div className="flex justify-between items-center px-4 py-2 bg-white border-t border-slate-200">
+          <div className="flex gap-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {items.length} Items
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-800">
+              {aspectRatio.label}
+            </span>
+            {showCarouselPreview && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                Slide {currentSlide + 1}/{exportSlices}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0.5"
+              max="3.0"
+              step="0.1"
+              value={zoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
+              className="w-24"
+            />
+            <span className="text-xs font-medium text-slate-600 w-10 text-right">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom(1)}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Reset
+            </button>
+            <p className="text-[10px] text-slate-400 ml-2">Resolution: {baseWidth}x{baseHeight}</p>
           </div>
         </div>
 
@@ -136,9 +310,20 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Off-screen export container */}
+      {/* Off-screen export container with full timeline for carousel slicing */}
       <div ref={hiddenContainerRef} className="fixed -left-[10000px] -top-[10000px]">
-        {/* We would render slices here during export */}
+        <TimelinePreview
+          items={items}
+          theme={theme}
+          contentScale={contentScale}
+          exportMode={true}
+          sliceIndex={0}
+          totalSlices={exportSlices}
+          canvasWidth={baseWidth}
+          canvasHeight={baseHeight}
+          compressGaps={compressGaps}
+          avoidSplit={avoidSplit}
+        />
       </div>
     </div>
   );
