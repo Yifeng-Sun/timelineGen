@@ -101,6 +101,60 @@ const App: React.FC = () => {
     setCurrentSlide(0);
   }, [exportSlices, showCarouselPreview]);
 
+  // Instagram-style drag to change slides
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; locked: boolean | null; pointerId: number } | null>(null);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (!showCarouselPreview) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, locked: null, pointerId: e.pointerId };
+    setIsDragging(false);
+    setDragOffset(0);
+  }, [showCarouselPreview]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    // Lock direction after 10px of movement
+    if (dragRef.current.locked === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      dragRef.current.locked = Math.abs(dx) > Math.abs(dy); // true = horizontal
+    }
+    if (dragRef.current.locked !== true) return;
+    setIsDragging(true);
+    // Rubber-band at edges
+    let offset = dx;
+    if ((currentSlide === 0 && dx > 0) || (currentSlide === exportSlices - 1 && dx < 0)) {
+      offset = dx * 0.3;
+    }
+    setDragOffset(offset);
+  }, [currentSlide, exportSlices]);
+
+  const handlePointerUp = useCallback(() => {
+    if (!dragRef.current) return;
+    const wasDragging = isDragging;
+    dragRef.current = null;
+    if (!wasDragging) { setDragOffset(0); setIsDragging(false); return; }
+    // Snap: if dragged more than 20% of container width, change slide
+    const container = previewAreaRef.current;
+    const threshold = container ? container.clientWidth * 0.2 : 80;
+    if (dragOffset < -threshold && currentSlide < exportSlices - 1) {
+      setCurrentSlide(s => s + 1);
+    } else if (dragOffset > threshold && currentSlide > 0) {
+      setCurrentSlide(s => s - 1);
+    }
+    setDragOffset(0);
+    setIsDragging(false);
+  }, [isDragging, dragOffset, currentSlide, exportSlices]);
+
+  const handlePointerCancel = useCallback(() => {
+    dragRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+  }, []);
+
   // Ctrl+scroll zoom on preview area
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -294,10 +348,14 @@ const App: React.FC = () => {
         )}
         <div
           ref={previewAreaRef}
-          className="flex-1 overflow-auto p-4 md:p-8 flex items-center justify-center relative"
+          className={`flex-1 overflow-hidden p-4 md:p-8 flex items-center justify-center relative ${showCarouselPreview ? 'select-none' : 'overflow-auto'}`}
           onWheel={handleWheel}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
         >
-          {showCarouselPreview && (
+          {showCarouselPreview && !isDragging && (
             <>
               <button
                 onClick={() => setCurrentSlide((s: number) => Math.max(0, s - 1))}
@@ -315,77 +373,82 @@ const App: React.FC = () => {
               </button>
             </>
           )}
-          <div
-            className="transition-all duration-500 ease-in-out"
-            style={{
-              width: isLandscape ? 'min(90%, 1200px)' : `min(70%, ${baseWidth}px)`,
-              aspectRatio: `${aspectRatio.width}/${aspectRatio.height}`,
-              transform: `scale(${zoom})`,
-              transformOrigin: 'center center',
-            }}
-          >
-            <div ref={mainPreviewRef}>
-              {showCarouselPreview ? (
-                <TimelinePreview
-                  items={items}
-                  theme={theme}
-                  contentScale={contentScale}
-                  exportMode={true}
-                  sliceIndex={currentSlide}
-                  totalSlices={exportSlices}
-                  canvasWidth={baseWidth}
-                  canvasHeight={baseHeight}
-                  compressGaps={compressGaps}
-                  avoidSplit={avoidSplit}
-                  compactDates={compactDates}
-                  font={font}
-                  onItemUpdate={handleItemUpdate}
-                  onItemDelete={handleItemDelete}
-                />
-              ) : (
-                <TimelinePreview
-                  items={items}
-                  theme={theme}
-                  contentScale={contentScale}
-                  canvasWidth={baseWidth}
-                  canvasHeight={baseHeight}
-                  compressGaps={compressGaps}
-                  compactDates={compactDates}
-                  font={font}
-                  onItemUpdate={handleItemUpdate}
-                  onItemDelete={handleItemDelete}
-                />
-              )}
-            </div>
 
-            {showCarouselPreview && (
-              <div className="mt-4 flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setCurrentSlide((s: number) => Math.max(0, s - 1))}
-                  disabled={currentSlide === 0}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+          {showCarouselPreview ? (
+            <div
+              style={{
+                width: isLandscape ? 'min(90%, 1200px)' : `min(70%, ${baseWidth}px)`,
+                transform: `scale(${zoom})`,
+                transformOrigin: 'center center',
+              }}
+            >
+              <div className="overflow-hidden rounded-lg" style={{ aspectRatio: `${aspectRatio.width}/${aspectRatio.height}` }}>
+                <div
+                  className={isDragging ? '' : 'transition-transform duration-300 ease-out'}
+                  style={{
+                    display: 'flex',
+                    width: `${exportSlices * 100}%`,
+                    transform: `translateX(calc(-${currentSlide * (100 / exportSlices)}% + ${dragOffset}px))`,
+                  }}
                 >
-                  &larr; Prev
-                </button>
-                <div className="flex gap-1.5">
                   {Array.from({ length: exportSlices }, (_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentSlide(i)}
-                      className={`w-2.5 h-2.5 rounded-full transition ${i === currentSlide ? 'bg-blue-600 scale-125' : 'bg-slate-300 hover:bg-slate-400'}`}
-                    />
+                    <div key={i} style={{ width: `${100 / exportSlices}%`, flexShrink: 0 }} ref={i === 0 ? mainPreviewRef : undefined}>
+                      <TimelinePreview
+                        items={items}
+                        theme={theme}
+                        contentScale={contentScale}
+                        exportMode={true}
+                        sliceIndex={i}
+                        totalSlices={exportSlices}
+                        canvasWidth={baseWidth}
+                        canvasHeight={baseHeight}
+                        compressGaps={compressGaps}
+                        avoidSplit={avoidSplit}
+                        compactDates={compactDates}
+                        font={font}
+                        onItemUpdate={handleItemUpdate}
+                        onItemDelete={handleItemDelete}
+                      />
+                    </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => setCurrentSlide((s: number) => Math.min(exportSlices - 1, s + 1))}
-                  disabled={currentSlide === exportSlices - 1}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  Next &rarr;
-                </button>
               </div>
-            )}
-          </div>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {Array.from({ length: exportSlices }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentSlide(i)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'bg-purple-600 scale-125' : 'bg-slate-300 hover:bg-slate-400'}`}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div
+              className="transition-all duration-500 ease-in-out"
+              style={{
+                width: isLandscape ? 'min(90%, 1200px)' : `min(70%, ${baseWidth}px)`,
+                aspectRatio: `${aspectRatio.width}/${aspectRatio.height}`,
+                transform: `scale(${zoom})`,
+                transformOrigin: 'center center',
+              }}
+            >
+              <div ref={mainPreviewRef}>
+                <TimelinePreview
+                  items={items}
+                  theme={theme}
+                  contentScale={contentScale}
+                  canvasWidth={baseWidth}
+                  canvasHeight={baseHeight}
+                  compressGaps={compressGaps}
+                  compactDates={compactDates}
+                  font={font}
+                  onItemUpdate={handleItemUpdate}
+                  onItemDelete={handleItemDelete}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Floating Add Item button + panel */}
