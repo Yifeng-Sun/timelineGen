@@ -528,7 +528,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
                 </text>
                 {onItemDelete && (
                   <g
-                    transform={`translate(${cx + layout.halfW}, ${dateY - 6 * s})`}
+                    transform={`translate(${cx + estimateTextWidth(item.label, 14 * s, true) / 2 + 10 * s}, ${labelY - 4 * s})`}
                     style={{ cursor: 'pointer' }} className="delete-btn"
                     onClick={() => onItemDelete(item.id)}
                   >
