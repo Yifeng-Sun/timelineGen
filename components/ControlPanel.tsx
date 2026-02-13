@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { AspectRatio, ASPECT_RATIOS, Theme, THEMES, FontOption, FONTS } from '../types';
+import type { User } from '../lib/api';
 
 interface ControlPanelProps {
   itemCount: number;
@@ -24,10 +25,17 @@ interface ControlPanelProps {
   font: FontOption;
   setFont: (f: FontOption) => void;
   hasOverlappingPeriods: boolean;
+  // Auth & remote pond
+  user: User | null;
+  currentTimelineName: string | null;
+  remoteCount: number;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  onPush: () => void;
+  onPull: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
-  itemCount,
   aspectRatio,
   setAspectRatio,
   contentScale,
@@ -48,6 +56,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   font,
   setFont,
   hasOverlappingPeriods,
+  user,
+  currentTimelineName,
+  remoteCount,
+  onSignIn,
+  onSignOut,
+  onPush,
+  onPull,
 }) => {
   return (
     <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-80 md:w-96">
@@ -55,6 +70,68 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Duckline</h1>
         <p className="text-slate-500 text-sm">Get your ducks in a row</p>
       </div>
+
+      {/* Auth section */}
+      <section className="space-y-3">
+        {user ? (
+          <>
+            <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-3">
+              {user.image ? (
+                <img src={user.image} alt="" className="w-8 h-8 rounded-full" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold">
+                  {user.name?.[0] || '?'}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800 truncate">{user.name}</p>
+                <p className="text-[10px] text-slate-400 truncate">{user.id}</p>
+              </div>
+              <button
+                onClick={onSignOut}
+                className="text-xs text-slate-400 hover:text-red-500 transition"
+              >
+                Sign Out
+              </button>
+            </div>
+
+            {/* Remote Pond buttons */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-700">Remote Pond</h3>
+              <button
+                onClick={onPush}
+                className="w-full py-2.5 rounded-lg text-sm font-medium border transition bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                Push to Remote Pond
+              </button>
+              {currentTimelineName && (
+                <p className="text-[10px] text-slate-400 px-1">
+                  Linked: <span className="font-medium text-slate-500">{currentTimelineName}</span>
+                </p>
+              )}
+              <button
+                onClick={onPull}
+                className="w-full py-2.5 rounded-lg text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg>
+                Pull from Remote Pond
+                {remoteCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">{remoteCount}</span>
+                )}
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            onClick={onSignIn}
+            className="w-full py-2.5 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 transition flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign In to Save Timelines
+          </button>
+        )}
+      </section>
 
       <section className="space-y-4">
         <div>

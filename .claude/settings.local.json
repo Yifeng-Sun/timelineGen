@@ -4,7 +4,15 @@
       "Bash(npm install)",
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(yes:*)",
+      "Bash(npm install:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(lsof:*)",
+      "Bash(curl:*)",
+      "Bash(git -C /Users/yifengsun/Dev/timelineGen diff App.tsx)",
+      "Bash(git -C /Users/yifengsun/Dev/timelineGen diff components/ControlPanel.tsx)"
     ]
   }
 }

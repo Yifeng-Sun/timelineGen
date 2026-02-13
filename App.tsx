@@ -4,6 +4,22 @@ import { TimelineItem, AspectRatio, ASPECT_RATIOS, Theme, THEMES, FontOption, FO
 import TimelinePreview from './components/TimelinePreview';
 import ControlPanel from './components/ControlPanel';
 import AddItemPanel from './components/AddItemPanel';
+import {
+  User,
+  TimelineSummary,
+  fetchSession,
+  fetchTimelines as apiFetchTimelines,
+  createTimeline,
+  getTimeline,
+  updateTimeline,
+  deleteTimeline as apiDeleteTimeline,
+  getSignInUrl,
+  signOut,
+  exchangeAuthCode,
+  getStoredUser,
+  hasToken,
+  clearAuth,
+} from './lib/api';
 
 const STORAGE_KEY = 'chronicle-flow-items';
 
@@ -48,6 +64,184 @@ const App: React.FC = () => {
   const [clearedItems, setClearedItems] = useState<TimelineItem[] | null>(null);
   const [showOverlapWarning, setShowOverlapWarning] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Auth & cloud timeline state
+  const [user, setUser] = useState<User | null>(null);
+  const [timelines, setTimelines] = useState<TimelineSummary[]>([]);
+  const [currentTimelineId, setCurrentTimelineId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSignInDialog, setShowSignInDialog] = useState(false);
+  const [signInWaiting, setSignInWaiting] = useState(false);
+
+  // Push / Pull dialog state
+  const [showPushDialog, setShowPushDialog] = useState(false);
+  const [pushTitle, setPushTitle] = useState('');
+  const [showPullDialog, setShowPullDialog] = useState(false);
+  const [pullTarget, setPullTarget] = useState<TimelineSummary | null>(null);
+
+  // Handle auth_code callback (popup lands here after OAuth) + restore session
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authCode = params.get('auth_code');
+
+    if (authCode) {
+      // Clean the URL so the code isn't visible / reusable
+      params.delete('auth_code');
+      const clean = params.toString();
+      window.history.replaceState(
+        {},
+        '',
+        window.location.pathname + (clean ? `?${clean}` : '')
+      );
+
+      // Exchange the one-time code for a token
+      exchangeAuthCode(authCode).then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+          // If this is the popup window, close it (main window picks up via storage event)
+          window.close();
+        }
+      });
+      return;
+    }
+
+    // Not a callback — try restoring session from stored token
+    const stored = getStoredUser();
+    if (stored && hasToken()) {
+      setUser(stored);
+      // Verify token is still valid in the background
+      fetchSession().then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+        } else {
+          // Token expired
+          clearAuth();
+          setUser(null);
+        }
+      });
+    }
+  }, []);
+
+  // Listen for auth changes from the popup (via localStorage)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'duckline_user' && e.newValue) {
+        try {
+          const newUser = JSON.parse(e.newValue) as User;
+          setUser(newUser);
+          setShowSignInDialog(false);
+          setSignInWaiting(false);
+        } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Fetch timelines when user signs in
+  useEffect(() => {
+    if (user) {
+      apiFetchTimelines()
+        .then((data) => setTimelines(data.timelines))
+        .catch(() => {});
+    } else {
+      setTimelines([]);
+      setCurrentTimelineId(null);
+    }
+  }, [user]);
+
+  const handleSignIn = useCallback(() => {
+    setShowSignInDialog(true);
+    setSignInWaiting(false);
+  }, []);
+
+  const handleSignInContinue = useCallback(() => {
+    window.open(getSignInUrl(), '_blank');
+    setSignInWaiting(true);
+  }, []);
+
+  const handleSignInCancel = useCallback(() => {
+    setShowSignInDialog(false);
+    setSignInWaiting(false);
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    setUser(null);
+  }, []);
+
+  // Derived: name of the currently linked timeline
+  const currentTimelineName = useMemo(() => {
+    if (!currentTimelineId) return null;
+    return timelines.find((t) => t.id === currentTimelineId)?.title || null;
+  }, [currentTimelineId, timelines]);
+
+  // Open push dialog
+  const handleOpenPush = useCallback(() => {
+    const existing = currentTimelineId
+      ? timelines.find((t) => t.id === currentTimelineId)
+      : null;
+    setPushTitle(existing?.title || '');
+    setShowPushDialog(true);
+  }, [currentTimelineId, timelines]);
+
+  // Confirm push
+  const handlePushConfirm = useCallback(async () => {
+    if (!user) return;
+    const title = pushTitle.trim() || 'Untitled';
+    setIsSaving(true);
+    try {
+      if (currentTimelineId) {
+        await updateTimeline(currentTimelineId, title, items);
+      } else {
+        const { id } = await createTimeline(title, items);
+        setCurrentTimelineId(id);
+      }
+      const { timelines: updated } = await apiFetchTimelines();
+      setTimelines(updated);
+    } catch {
+      // silently fail
+    } finally {
+      setIsSaving(false);
+      setShowPushDialog(false);
+    }
+  }, [user, pushTitle, currentTimelineId, items]);
+
+  // Open pull dialog
+  const handleOpenPull = useCallback(() => {
+    setPullTarget(null);
+    setShowPullDialog(true);
+  }, []);
+
+  // Confirm pull
+  const handlePullConfirm = useCallback(async () => {
+    if (!pullTarget) return;
+    setIsLoading(true);
+    try {
+      const data = await getTimeline(pullTarget.id);
+      setItems(data.items as TimelineItem[]);
+      setCurrentTimelineId(pullTarget.id);
+    } catch {
+      // silently fail
+    } finally {
+      setIsLoading(false);
+      setShowPullDialog(false);
+      setPullTarget(null);
+    }
+  }, [pullTarget]);
+
+  // Delete a remote timeline from the pull dialog
+  const handleDeleteRemote = useCallback(async (id: string) => {
+    try {
+      await apiDeleteTimeline(id);
+      setTimelines((prev) => prev.filter((t) => t.id !== id));
+      if (currentTimelineId === id) setCurrentTimelineId(null);
+      if (pullTarget?.id === id) setPullTarget(null);
+    } catch {
+      // silently fail
+    }
+  }, [currentTimelineId, pullTarget]);
 
   // Detect overlapping periods (period-period or event/note inside a period)
   const hasOverlappingPeriods = useMemo(() => {
@@ -332,6 +526,13 @@ const App: React.FC = () => {
         compactDates={compactDates}
         setCompactDates={setCompactDates}
         hasOverlappingPeriods={hasOverlappingPeriods}
+        user={user}
+        currentTimelineName={currentTimelineName}
+        remoteCount={timelines.length}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+        onPush={handleOpenPush}
+        onPull={handleOpenPull}
       />
       </div>
 
@@ -359,6 +560,7 @@ const App: React.FC = () => {
             <>
               <button
                 onClick={() => setCurrentSlide((s: number) => Math.max(0, s - 1))}
+                onPointerDown={(e) => e.stopPropagation()}
                 disabled={currentSlide === 0}
                 className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 border border-slate-200 shadow-md flex items-center justify-center text-slate-500 hover:bg-white hover:text-slate-800 transition disabled:opacity-0 disabled:pointer-events-none"
               >
@@ -366,6 +568,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={() => setCurrentSlide((s: number) => Math.min(exportSlices - 1, s + 1))}
+                onPointerDown={(e) => e.stopPropagation()}
                 disabled={currentSlide === exportSlices - 1}
                 className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 border border-slate-200 shadow-md flex items-center justify-center text-slate-500 hover:bg-white hover:text-slate-800 transition disabled:opacity-0 disabled:pointer-events-none"
               >
@@ -558,6 +761,248 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Sign-in dialog */}
+      {showSignInDialog && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-5">
+            {!signInWaiting ? (
+              <>
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-lg">Sign in to Duckline</h3>
+                  <p className="text-sm text-slate-500">Save and sync your timelines across devices</p>
+                </div>
+                <button
+                  onClick={handleSignInContinue}
+                  className="w-full py-3 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition flex items-center justify-center gap-2"
+                >
+                  Continue with Google or GitHub
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </button>
+                <p className="text-[11px] text-slate-400 text-center">Opens sign-in in a new tab</p>
+                <button
+                  onClick={handleSignInCancel}
+                  className="w-full py-2 text-sm text-slate-500 hover:text-slate-700 transition"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                    <span className="inline-block w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-lg">Waiting for sign-in</h3>
+                  <p className="text-sm text-slate-500">Complete the sign-in in the tab that just opened, then come back here.</p>
+                </div>
+                <button
+                  onClick={handleSignInContinue}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition"
+                >
+                  Re-open sign-in tab
+                </button>
+                <button
+                  onClick={handleSignInCancel}
+                  className="w-full py-2 text-sm text-slate-500 hover:text-slate-700 transition"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Push to Remote Pond dialog */}
+      {showPushDialog && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-5">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+              </div>
+              <h3 className="font-bold text-slate-900 text-lg">Push to Remote Pond</h3>
+              <p className="text-sm text-slate-500">
+                {currentTimelineId ? 'Update your remote timeline' : 'Save your timeline to the cloud'}
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-lg p-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Items</span>
+                <span className="font-medium text-slate-800">{items.length} ducks</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Action</span>
+                <span className="font-medium text-slate-800">
+                  {currentTimelineId ? 'Update existing' : 'Create new'}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Timeline name</label>
+              <input
+                type="text"
+                value={pushTitle}
+                onChange={(e) => setPushTitle(e.target.value)}
+                placeholder="Untitled"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowPushDialog(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePushConfirm}
+                disabled={isSaving}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {isSaving ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Confirm Push'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pull from Remote Pond dialog */}
+      {showPullDialog && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+            {!pullTarget ? (
+              <>
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-lg">Pull from Remote Pond</h3>
+                  <p className="text-sm text-slate-500">Select a timeline to load</p>
+                </div>
+
+                {timelines.length > 0 ? (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                    {timelines.map((t) => {
+                      const ago = (() => {
+                        const s = Math.floor((Date.now() - t.updatedAt) / 1000);
+                        if (s < 60) return 'just now';
+                        const m = Math.floor(s / 60);
+                        if (m < 60) return `${m}m ago`;
+                        const h = Math.floor(m / 60);
+                        if (h < 24) return `${h}h ago`;
+                        return `${Math.floor(h / 24)}d ago`;
+                      })();
+                      return (
+                        <div
+                          key={t.id}
+                          className={`group flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition ${
+                            currentTimelineId === t.id
+                              ? 'border-blue-400 bg-blue-50'
+                              : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'
+                          }`}
+                          onClick={() => setPullTarget(t)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{t.title}</p>
+                            <p className="text-[10px] text-slate-400">{ago}</p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRemote(t.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 transition"
+                            title="Delete timeline"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                          </button>
+                          <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-slate-400">No remote timelines yet.</p>
+                    <p className="text-xs text-slate-400 mt-1">Push your first timeline to get started.</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setShowPullDialog(false)}
+                  className="w-full py-2 text-sm text-slate-500 hover:text-slate-700 transition"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-lg">Confirm Pull</h3>
+                </div>
+
+                <div className="bg-slate-50 rounded-lg p-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Remote timeline</span>
+                    <span className="font-medium text-slate-800">{pullTarget.title}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Last updated</span>
+                    <span className="font-medium text-slate-800">
+                      {new Date(pullTarget.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <hr className="border-slate-200" />
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Local items to replace</span>
+                    <span className="font-medium text-red-600">{items.length} ducks</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 text-center leading-relaxed">
+                  This will <span className="font-semibold text-red-600">replace</span> your current {items.length} local items with the remote timeline &ldquo;{pullTarget.title}&rdquo;.
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPullTarget(null)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handlePullConfirm}
+                    disabled={isLoading}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {isLoading ? (
+                      <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      'Confirm Pull'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Off-screen export container with full timeline for carousel slicing */}
       <div ref={hiddenContainerRef} className="fixed -left-[10000px] -top-[10000px]">
