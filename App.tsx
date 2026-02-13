@@ -77,6 +77,8 @@ const App: React.FC = () => {
   // Push / Pull dialog state
   const [showPushDialog, setShowPushDialog] = useState(false);
   const [pushTitle, setPushTitle] = useState('');
+  const [pushMode, setPushMode] = useState<'create' | 'update'>('create');
+  const [pushTargetId, setPushTargetId] = useState<string | null>(null);
   const [showPullDialog, setShowPullDialog] = useState(false);
   const [pullTarget, setPullTarget] = useState<TimelineSummary | null>(null);
 
@@ -179,10 +181,17 @@ const App: React.FC = () => {
 
   // Open push dialog
   const handleOpenPush = useCallback(() => {
-    const existing = currentTimelineId
-      ? timelines.find((t) => t.id === currentTimelineId)
-      : null;
-    setPushTitle(existing?.title || '');
+    if (currentTimelineId) {
+      // Default to updating the currently linked timeline
+      setPushMode('update');
+      setPushTargetId(currentTimelineId);
+      const existing = timelines.find((t) => t.id === currentTimelineId);
+      setPushTitle(existing?.title || '');
+    } else {
+      setPushMode('create');
+      setPushTargetId(null);
+      setPushTitle('');
+    }
     setShowPushDialog(true);
   }, [currentTimelineId, timelines]);
 
@@ -192,8 +201,9 @@ const App: React.FC = () => {
     const title = pushTitle.trim() || 'Untitled';
     setIsSaving(true);
     try {
-      if (currentTimelineId) {
-        await updateTimeline(currentTimelineId, title, items);
+      if (pushMode === 'update' && pushTargetId) {
+        await updateTimeline(pushTargetId, title, items);
+        setCurrentTimelineId(pushTargetId);
       } else {
         const { id } = await createTimeline(title, items);
         setCurrentTimelineId(id);
@@ -206,7 +216,7 @@ const App: React.FC = () => {
       setIsSaving(false);
       setShowPushDialog(false);
     }
-  }, [user, pushTitle, currentTimelineId, items]);
+  }, [user, pushTitle, pushMode, pushTargetId, items]);
 
   // Open pull dialog
   const handleOpenPull = useCallback(() => {
@@ -827,22 +837,82 @@ const App: React.FC = () => {
               </div>
               <h3 className="font-bold text-slate-900 text-lg">Push to Remote Pond</h3>
               <p className="text-sm text-slate-500">
-                {currentTimelineId ? 'Update your remote timeline' : 'Save your timeline to the cloud'}
+                {pushMode === 'update' ? 'Update your remote timeline' : 'Save your timeline to the cloud'}
               </p>
             </div>
 
-            <div className="bg-slate-50 rounded-lg p-3 space-y-2 text-sm">
+            <div className="bg-slate-50 rounded-lg p-3 space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-500">Items</span>
                 <span className="font-medium text-slate-800">{items.length} ducks</span>
               </div>
-              <div className="flex justify-between">
+              <div className="space-y-1.5">
                 <span className="text-slate-500">Action</span>
-                <span className="font-medium text-slate-800">
-                  {currentTimelineId ? 'Update existing' : 'Create new'}
-                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setPushMode('create');
+                      setPushTargetId(null);
+                      setPushTitle('');
+                    }}
+                    disabled={timelines.length >= 3}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${
+                      pushMode === 'create'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : timelines.length >= 3
+                          ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Create new
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPushMode('update');
+                      const target = currentTimelineId || timelines[0]?.id || null;
+                      setPushTargetId(target);
+                      const existing = timelines.find((t) => t.id === target);
+                      setPushTitle(existing?.title || '');
+                    }}
+                    disabled={timelines.length === 0}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${
+                      pushMode === 'update'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : timelines.length === 0
+                          ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Update existing
+                  </button>
+                </div>
+                {timelines.length >= 3 && pushMode !== 'update' && (
+                  <p className="text-xs text-amber-600">Max 3 remote timelines reached. Delete one or update an existing one.</p>
+                )}
               </div>
             </div>
+
+            {pushMode === 'update' && timelines.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Select timeline to update</label>
+                <select
+                  value={pushTargetId || ''}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setPushTargetId(id);
+                    const existing = timelines.find((t) => t.id === id);
+                    setPushTitle(existing?.title || '');
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  {timelines.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}{t.id === currentTimelineId ? ' (linked)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">Timeline name</label>
@@ -865,7 +935,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={handlePushConfirm}
-                disabled={isSaving}
+                disabled={isSaving || (pushMode === 'create' && timelines.length >= 3) || (pushMode === 'update' && !pushTargetId)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
