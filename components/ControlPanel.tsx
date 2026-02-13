@@ -156,8 +156,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <p className="text-[10px] text-slate-400 mt-1">Pick your flock's handwriting</p>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Social Media Carousel</label>
+        <div className="relative bg-purple-50/60 border border-purple-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-semibold text-slate-700">Social Media Carousel</label>
+            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="6" width="6" height="12" rx="1" />
+              <rect x="9" y="4" width="6" height="16" rx="1" />
+              <rect x="16" y="6" width="6" height="12" rx="1" />
+            </svg>
+          </div>
           <div className="flex items-center gap-3">
             <input
               type="range"
@@ -169,8 +176,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
             <span className="text-sm font-bold text-blue-600 w-8">{exportSlices}x</span>
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">How many ponds to swim across</p>
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 mt-2 cursor-pointer">
+          <p className="text-[10px] text-slate-400">How many ponds to swim across</p>
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
             <input
               type="checkbox"
               checked={avoidSplit}
@@ -179,12 +186,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
             No duck left behind
           </label>
-          <p className="text-[10px] text-slate-400 mt-1 ml-5">Keep labels from getting split across slides. Increase slide count for best results.</p>
+          <p className="text-[10px] text-slate-400 ml-5">Keep labels from getting split across slides. Increase slide count for best results.</p>
           <button
             onClick={() => setShowCarouselPreview(!showCarouselPreview)}
-            className={`mt-2 w-full py-2 rounded-lg text-sm font-medium border transition ${
+            className={`w-full py-2 rounded-lg text-sm font-medium border transition ${
               showCarouselPreview
-                ? 'bg-purple-50 border-purple-500 text-purple-700'
+                ? 'bg-purple-100 border-purple-500 text-purple-700'
                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
