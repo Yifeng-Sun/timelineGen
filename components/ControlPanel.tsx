@@ -242,6 +242,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <a href="mailto:ys@yifengsun.com?subject=Duckline%20Bug%20Report" className="text-xs text-slate-400 hover:text-blue-500 transition">
           throw me a bug
         </a>
+        <span className="text-slate-300">|</span>
+        <a href="https://github.com/Yifeng-Sun/timelineGen" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-blue-500 transition">
+          source code
+        </a>
       </div>
     </div>
   );

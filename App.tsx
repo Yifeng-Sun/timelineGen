@@ -48,9 +48,10 @@ const App: React.FC = () => {
   const [clearedItems, setClearedItems] = useState<TimelineItem[] | null>(null);
   const [showOverlapWarning, setShowOverlapWarning] = useState(false);
 
-  // Detect overlapping periods
+  // Detect overlapping periods (period-period or event/note inside a period)
   const hasOverlappingPeriods = useMemo(() => {
     const periods = items.filter((i): i is Extract<TimelineItem, { type: 'period' }> => i.type === 'period');
+    // Period-period overlap
     for (let i = 0; i < periods.length; i++) {
       for (let j = i + 1; j < periods.length; j++) {
         const a0 = new Date(periods[i].startDate).getTime();
@@ -58,6 +59,16 @@ const App: React.FC = () => {
         const b0 = new Date(periods[j].startDate).getTime();
         const b1 = new Date(periods[j].endDate).getTime();
         if (a0 < b1 && b0 < a1) return true;
+      }
+    }
+    // Event/note falling inside a period
+    const points = items.filter(i => i.type === 'event' || i.type === 'note') as Array<{ date: string }>;
+    for (const pt of points) {
+      const t = new Date(pt.date).getTime();
+      for (const p of periods) {
+        const p0 = new Date(p.startDate).getTime();
+        const p1 = new Date(p.endDate).getTime();
+        if (t > p0 && t < p1) return true;
       }
     }
     return false;
@@ -437,7 +448,7 @@ const App: React.FC = () => {
                 </div>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
-                When periods overlap, their labels share the same timeline space. The slide-splitting algorithm needs a clear left-to-right order to push labels apart, but overlapping periods create circular dependencies &mdash; pushing one label out of a boundary can shove an overlapping neighbor back in. This makes a clean split impossible to guarantee.
+                When periods overlap, their labels share the same timeline space. The slide-splitting algorithm needs a clear left-to-right order to push labels apart, but overlapping periods create circular dependencies &mdash; pushing one label out of a boundary can shove an overlapping neighbor back in. This makes a clean split different to guarantee. Please submit a Pull Request if you have ideas on how to handle this!
               </p>
               <p className="text-xs text-slate-400">Remove the overlap to re-enable this feature.</p>
               <button
