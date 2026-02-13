@@ -17,8 +17,6 @@ const DEFAULT_ITEMS: TimelineItem[] = [
   { id: '7', label: 'Sunset waddle', date: 'Jun 7, 2025 6:00 PM', type: 'event' },
   { id: '8', label: 'Quack-aroke night', startDate: 'Jun 7, 2025 8:00 PM', endDate: 'Jun 7, 2025 11:00 PM', type: 'period' },
   { id: '9', label: 'Zzz under the stars', date: 'Jun 7, 2025 11:30 PM', type: 'event' },
-  { id: '10', label: 'Lazy Sunday', startDate: 'Jun 8, 2025 9:00 AM', endDate: 'Jun 8, 2025 5:00 PM', type: 'period' },
-  { id: '11', label: 'Back to the grind', date: 'Jun 9, 2025 7:00 AM', type: 'note' },
 ];
 
 function loadItems(): TimelineItem[] {
