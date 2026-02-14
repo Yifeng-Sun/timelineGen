@@ -376,15 +376,19 @@ const App: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  // Ctrl+scroll zoom on preview area
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
+  // Scroll zoom on preview area (non-passive to allow preventDefault)
+  useEffect(() => {
+    const el = previewAreaRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
       e.preventDefault();
       setZoom(prev => {
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         return Math.round(Math.min(3.0, Math.max(0.5, prev + delta)) * 10) / 10;
       });
-    }
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
   }, []);
 
   // Called when a label is edited on the preview
@@ -577,7 +581,6 @@ const App: React.FC = () => {
         <div
           ref={previewAreaRef}
           className={`flex-1 overflow-hidden p-4 md:p-8 flex items-center justify-center relative ${showCarouselPreview ? 'select-none' : 'overflow-auto'}`}
-          onWheel={handleWheel}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
