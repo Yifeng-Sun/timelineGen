@@ -42,11 +42,19 @@ function itemsToJson(items: TimelineItem[]): string {
   return JSON.stringify(obj, null, 2);
 }
 
+// Combine separate date and time values into a datetime-local string
+function combineDatetime(date: string, time: string): string {
+  if (!date) return '';
+  return time ? `${date}T${time}` : `${date}T00:00`;
+}
+
 const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose }) => {
   const [addType, setAddType] = useState<AddItemType>('event');
   const [addName, setAddName] = useState('');
   const [addDate, setAddDate] = useState('');
+  const [addTime, setAddTime] = useState('');
   const [addEndDate, setAddEndDate] = useState('');
+  const [addEndTime, setAddEndTime] = useState('');
   const [showJson, setShowJson] = useState(false);
   const [jsonInput, setJsonInput] = useState(() => itemsToJson(items));
 
@@ -59,8 +67,8 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
   const handleSubmit = () => {
     if (!canSubmit) return;
     const id = Math.random().toString(36).substr(2, 9);
-    const dateStr = formatDateTimeValue(addDate);
-    const endDateStr = formatDateTimeValue(addEndDate);
+    const dateStr = formatDateTimeValue(combineDatetime(addDate, addTime));
+    const endDateStr = formatDateTimeValue(combineDatetime(addEndDate, addEndTime));
     let newItem: TimelineItem;
 
     if (addType === 'event') {
@@ -74,7 +82,9 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
     setItems(prev => [...prev, newItem]);
     setAddName('');
     setAddDate('');
+    setAddTime('');
     setAddEndDate('');
+    setAddEndTime('');
   };
 
   const applyJson = () => {
@@ -142,24 +152,42 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
         <label className="block text-[10px] text-slate-400 mb-1">
           {addType === 'period' ? 'Start' : 'Date & Time'}
         </label>
-        <input
-          type="datetime-local"
-          value={addDate}
-          onChange={(e) => setAddDate(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className={inputClass}
-        />
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={addDate}
+            onChange={(e) => setAddDate(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={`${inputClass} flex-1`}
+          />
+          <input
+            type="time"
+            value={addTime}
+            onChange={(e) => setAddTime(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={`${inputClass} w-28`}
+          />
+        </div>
       </div>
       {addType === 'period' && (
         <div>
           <label className="block text-[10px] text-slate-400 mb-1">End</label>
-          <input
-            type="datetime-local"
-            value={addEndDate}
-            onChange={(e) => setAddEndDate(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={inputClass}
-          />
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={addEndDate}
+              onChange={(e) => setAddEndDate(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className={`${inputClass} flex-1`}
+            />
+            <input
+              type="time"
+              value={addEndTime}
+              onChange={(e) => setAddEndTime(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className={`${inputClass} w-28`}
+            />
+          </div>
         </div>
       )}
       <button
