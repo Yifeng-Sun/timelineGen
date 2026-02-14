@@ -857,10 +857,10 @@ const App: React.FC = () => {
               </div>
               <div className="flex items-center justify-center gap-1.5">
                 <h3 className="font-bold text-slate-900 text-lg">Push to Remote Pond</h3>
-                <div className="relative group">
+                <div className="relative group/tip">
                   <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-500 text-[10px] font-bold flex items-center justify-center cursor-help">i</div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-slate-800 text-white text-[11px] leading-relaxed rounded-lg p-2.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition z-10">
-                    Free accounts can save up to {timelineLimit} remote timelines. Need more? <a href="mailto:ys@yifengsun.com?subject=Duckline%20Upgrade%20Request" className="underline text-blue-300 hover:text-blue-200">Send me an email</a> to upgrade.
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-0 w-52 bg-slate-800 text-white text-[11px] leading-relaxed rounded-lg p-2.5 pb-4 opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity duration-300 z-10">
+                    Each account can save up to {timelineLimit} remote timelines. Need more? <a href="mailto:ys@yifengsun.com?subject=Duckline%20Upgrade%20Request" className="underline text-blue-300 hover:text-blue-200">Send me an email</a>.
                   </div>
                 </div>
               </div>
