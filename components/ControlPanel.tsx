@@ -296,24 +296,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="grid grid-cols-1 gap-2">
           <button
             onClick={() => onExport('png')}
-            className="w-full bg-white border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center justify-center gap-2"
+            disabled={showCarouselPreview}
+            className="w-full bg-white border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
             Download PNG
           </button>
           <button
             onClick={() => onExport('svg')}
-            className="w-full bg-white border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center justify-center gap-2"
+            disabled={showCarouselPreview}
+            className="w-full bg-white border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
             Download SVG
           </button>
           <button
-            onClick={() => onExport('carousel')}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-purple-700 transition shadow-lg flex items-center justify-center gap-2"
+            onClick={() => setShowCarouselPreview(true)}
+            className="text-sm text-purple-600 hover:text-purple-800 underline transition"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="6" height="12" rx="1" /><rect x="9" y="4" width="6" height="16" rx="1" /><rect x="16" y="6" width="6" height="12" rx="1" /></svg>
-            Download Carousel
+            Activate Carousel Mode
           </button>
         </div>
       </section>
