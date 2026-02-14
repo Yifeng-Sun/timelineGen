@@ -48,11 +48,33 @@ function combineDatetime(date: string, time: string): string {
   return time ? `${date}T${time}` : `${date}T00:00`;
 }
 
+// Get the latest date from timeline items, then add 1 hour
+function getDefaultAfterLast(items: TimelineItem[]): { date: string; time: string } {
+  let latest = 0;
+  for (const item of items) {
+    if (item.type === 'period') {
+      const t = new Date(item.endDate).getTime();
+      if (t > latest) latest = t;
+    } else {
+      const t = new Date(item.date).getTime();
+      if (t > latest) latest = t;
+    }
+  }
+  const d = latest ? new Date(latest + 60 * 60 * 1000) : new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}` };
+}
+
 const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose }) => {
+  const defaults = getDefaultAfterLast(items);
   const [addType, setAddType] = useState<AddItemType>('event');
   const [addName, setAddName] = useState('');
-  const [addDate, setAddDate] = useState('');
-  const [addTime, setAddTime] = useState('');
+  const [addDate, setAddDate] = useState(defaults.date);
+  const [addTime, setAddTime] = useState(defaults.time);
   const [addEndDate, setAddEndDate] = useState('');
   const [addEndTime, setAddEndTime] = useState('');
   const [showJson, setShowJson] = useState(false);
@@ -79,10 +101,14 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
       newItem = { id, label: addName.trim(), date: dateStr, type: 'note' };
     }
 
-    setItems(prev => [...prev, newItem]);
+    setItems(prev => {
+      const next = [...prev, newItem];
+      const nextDefaults = getDefaultAfterLast(next);
+      setAddDate(nextDefaults.date);
+      setAddTime(nextDefaults.time);
+      return next;
+    });
     setAddName('');
-    setAddDate('');
-    setAddTime('');
     setAddEndDate('');
     setAddEndTime('');
   };
@@ -158,14 +184,14 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
             value={addDate}
             onChange={(e) => setAddDate(e.target.value)}
             onKeyDown={handleKeyDown}
-            className={`${inputClass} flex-1`}
+            className={`${inputClass} min-w-0 flex-[3]`}
           />
           <input
             type="time"
             value={addTime}
             onChange={(e) => setAddTime(e.target.value)}
             onKeyDown={handleKeyDown}
-            className={`${inputClass} w-28`}
+            className={`${inputClass} min-w-0 flex-[2]`}
           />
         </div>
       </div>
@@ -178,14 +204,14 @@ const AddItemPanel: React.FC<AddItemPanelProps> = ({ items, setItems, onClose })
               value={addEndDate}
               onChange={(e) => setAddEndDate(e.target.value)}
               onKeyDown={handleKeyDown}
-              className={`${inputClass} flex-1`}
+              className={`${inputClass} min-w-0 flex-[3]`}
             />
             <input
               type="time"
               value={addEndTime}
               onChange={(e) => setAddEndTime(e.target.value)}
               onKeyDown={handleKeyDown}
-              className={`${inputClass} w-28`}
+              className={`${inputClass} min-w-0 flex-[2]`}
             />
           </div>
         </div>
