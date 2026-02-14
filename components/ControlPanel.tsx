@@ -318,6 +318,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="6" height="12" rx="1" /><rect x="9" y="4" width="6" height="16" rx="1" /><rect x="16" y="6" width="6" height="12" rx="1" /></svg>
               Download Carousel
             </button>
+            <button
+              onClick={() => setShowCarouselPreview(false)}
+              className="text-sm text-purple-600 hover:text-purple-800 underline transition"
+            >
+              Disable Carousel Mode
+            </button>
           ) : (
             <button
               onClick={() => setShowCarouselPreview(true)}
