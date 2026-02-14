@@ -28,6 +28,10 @@ export function clearAuth(): void {
   localStorage.removeItem(USER_KEY);
 }
 
+export function syncAuthFromStorage(): void {
+  authToken = localStorage.getItem(TOKEN_KEY);
+}
+
 export function getStoredUser(): User | null {
   try {
     const raw = localStorage.getItem(USER_KEY);

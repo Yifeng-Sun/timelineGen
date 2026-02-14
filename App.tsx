@@ -19,6 +19,7 @@ import {
   getStoredUser,
   hasToken,
   clearAuth,
+  syncAuthFromStorage,
 } from './lib/api';
 
 const STORAGE_KEY = 'chronicle-flow-items';
@@ -128,6 +129,9 @@ const App: React.FC = () => {
   // Listen for auth changes from the popup (via localStorage)
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'duckline_token') {
+        syncAuthFromStorage();
+      }
       if (e.key === 'duckline_user' && e.newValue) {
         try {
           const newUser = JSON.parse(e.newValue) as User;
