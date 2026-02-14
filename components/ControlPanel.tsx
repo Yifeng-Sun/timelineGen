@@ -413,6 +413,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           source code
         </a>
       </div>
+      <p className="text-[9px] text-slate-300 text-center leading-tight pt-1">
+        Data is stored locally in your browser. Cloud sync transmits data solely for storage. We do not sell or share your data. Provided "as is" without warranty. Use at your own discretion.
+      </p>
     </div>
   );
 };

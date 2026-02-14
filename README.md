@@ -93,6 +93,7 @@ Output goes to `dist/`. Works with Cloudflare Pages, Vercel, Netlify, or any sta
 - **Custom themes** — User-defined color palettes and background images
 - **Timeline templates** — Pre-built layouts for common use cases (project plans, historical events, trip itineraries)
 - **Undo/redo** — Step back and forward through edits
+- **Transparent background export** — Export PNGs with no background for easy layering in other design tools
 
 ## Tech Stack
 
@@ -105,3 +106,9 @@ Output goes to `dist/`. Works with Cloudflare Pages, Vercel, Netlify, or any sta
 ## Author
 
 **Yifeng Sun** — [yifengsun.com](https://yifengsun.com)
+
+---
+
+<sub>**Privacy** — Duckline stores timeline data in your browser's localStorage. Cloud sync requires sign-in and transmits data to our servers solely for storage and retrieval. We do not sell, share, or use your data for advertising. You may delete your account and all associated data at any time.</sub>
+
+<sub>**Disclaimer** — Duckline is provided "as is" without warranty of any kind. The authors are not liable for any damages, data loss, or issues arising from the use of this software. Use at your own discretion.</sub>
