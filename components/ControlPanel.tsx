@@ -66,8 +66,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 }) => {
   return (
     <div className="h-full bg-slate-50 border-r border-slate-200 overflow-y-auto custom-scrollbar p-6 space-y-8 w-80 md:w-96">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Duckline</h1>
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-1">
+          <svg viewBox="0 0 64 64" className="w-7 h-7">
+            <defs>
+              <mask id="title-ripples">
+                <rect width="64" height="64" fill="white"/>
+                <rect x="-4" y="37" width="40" height="3" rx="1.5" fill="black"/>
+                <rect x="20" y="44" width="48" height="3" rx="1.5" fill="black"/>
+              </mask>
+            </defs>
+            <path mask="url(#title-ripples)" fill="#FBBF24" d="M 60 17 C 54 8, 44 3, 36 5 C 28 7, 24 14, 24 22 C 24 30, 16 34, 10 30 C 6 28, 4 34, 8 40 C 12 48, 24 54, 36 54 C 48 54, 56 46, 54 36 C 52 28, 52 24, 50 21 Z"/>
+          </svg>
+          <h1 className="text-2xl font-bold text-slate-900">Duckline</h1>
+        </div>
         <p className="text-slate-500 text-sm">Get your ducks in a row</p>
       </div>
 

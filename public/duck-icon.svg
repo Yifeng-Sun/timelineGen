@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <mask id="ripples">
+      <rect width="64" height="64" fill="white"/>
+<!--Upper ripple: enters from left, rounded end stops at center-->
+      <rect x="-4" y="37" width="40" height="3" rx="1.5" fill="black"/>
+<!--Lower ripple: enters from right, rounded end stops at center-left-->
+      <rect x="20" y="44" width="48" height="3" rx="1.5" fill="black"/>
+    </mask>
+  </defs>
+<!--Single continuous curve duck silhouette-->
+  <path mask="url(#ripples)" fill="#FBBF24" d="
+    M 60 17
+    C 54 8, 44 3, 36 5
+    C 28 7, 24 14, 24 22
+    C 24 30, 16 34, 10 30
+    C 6 28, 4 34, 8 40
+    C 12 48, 24 54, 36 54
+    C 48 54, 56 46, 54 36
+    C 52 28, 52 24, 50 21
+    Z
+  "/>
+</svg>
