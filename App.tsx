@@ -855,7 +855,15 @@ const App: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
               </div>
-              <h3 className="font-bold text-slate-900 text-lg">Push to Remote Pond</h3>
+              <div className="flex items-center justify-center gap-1.5">
+                <h3 className="font-bold text-slate-900 text-lg">Push to Remote Pond</h3>
+                <div className="relative group">
+                  <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-500 text-[10px] font-bold flex items-center justify-center cursor-help">i</div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-slate-800 text-white text-[11px] leading-relaxed rounded-lg p-2.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition z-10">
+                    Free accounts can save up to {timelineLimit} remote timelines. Need more? <a href="mailto:ys@yifengsun.com?subject=Duckline%20Upgrade%20Request" className="underline text-blue-300 hover:text-blue-200">Send me an email</a> to upgrade.
+                  </div>
+                </div>
+              </div>
               <p className="text-sm text-slate-500">
                 {pushMode === 'update' ? 'Update your remote timeline' : 'Save your timeline to the cloud'}
               </p>
