@@ -84,7 +84,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-800 truncate">{user.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-slate-800 truncate">{user.name}</p>
+                  {user.plan === 'premium' && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                      Premium Duck
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-400 truncate">{user.id}</p>
               </div>
               <button

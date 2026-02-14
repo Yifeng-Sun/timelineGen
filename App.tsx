@@ -173,6 +173,9 @@ const App: React.FC = () => {
     setUser(null);
   }, []);
 
+  // Derived: timeline cap based on plan
+  const timelineLimit = user?.plan === 'premium' ? 200 : 3;
+
   // Derived: name of the currently linked timeline
   const currentTimelineName = useMemo(() => {
     if (!currentTimelineId) return null;
@@ -861,11 +864,11 @@ const App: React.FC = () => {
                       setPushTargetId(null);
                       setPushTitle('');
                     }}
-                    disabled={timelines.length >= 3}
+                    disabled={timelines.length >= timelineLimit}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${
                       pushMode === 'create'
                         ? 'bg-blue-600 text-white border-blue-600'
-                        : timelines.length >= 3
+                        : timelines.length >= timelineLimit
                           ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -892,8 +895,8 @@ const App: React.FC = () => {
                     Update existing
                   </button>
                 </div>
-                {timelines.length >= 3 && pushMode !== 'update' && (
-                  <p className="text-xs text-amber-600">Max 3 remote timelines reached. Delete one or update an existing one.</p>
+                {timelines.length >= timelineLimit && pushMode !== 'update' && (
+                  <p className="text-xs text-amber-600">Max {timelineLimit} remote timelines reached. Delete one or update an existing one.</p>
                 )}
               </div>
             </div>
@@ -941,7 +944,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={handlePushConfirm}
-                disabled={isSaving || (pushMode === 'create' && timelines.length >= 3) || (pushMode === 'update' && !pushTargetId)}
+                disabled={isSaving || (pushMode === 'create' && timelines.length >= timelineLimit) || (pushMode === 'update' && !pushTargetId)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
