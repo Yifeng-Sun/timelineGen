@@ -9,6 +9,10 @@ interface ControlPanelProps {
   setAspectRatio: (ar: AspectRatio) => void;
   contentScale: number;
   setContentScale: (s: number) => void;
+  contentShiftX: number;
+  setContentShiftX: (v: number) => void;
+  contentShiftY: number;
+  setContentShiftY: (v: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
   exportSlices: number;
@@ -40,6 +44,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   setAspectRatio,
   contentScale,
   setContentScale,
+  contentShiftX,
+  setContentShiftX,
+  contentShiftY,
+  setContentShiftY,
   theme,
   setTheme,
   exportSlices,
@@ -177,6 +185,49 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               );
             })}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-semibold text-slate-700">Content Position</label>
+            {(contentShiftX !== 0 || contentShiftY !== 0) && (
+              <button
+                onClick={() => { setContentShiftX(0); setContentShiftY(0); }}
+                className="text-[10px] text-slate-400 hover:text-slate-600 underline"
+              >
+                reset
+              </button>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">
+              Horizontal <span className="text-blue-600 font-bold ml-1">{contentShiftX > 0 ? '+' : ''}{(contentShiftX * 100).toFixed(0)}%</span>
+            </label>
+            <input
+              type="range"
+              min="-0.5"
+              max="0.5"
+              step="0.05"
+              value={contentShiftX}
+              onChange={(e) => setContentShiftX(parseFloat(e.target.value))}
+              className="w-full accent-blue-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">
+              Vertical <span className="text-blue-600 font-bold ml-1">{contentShiftY > 0 ? '+' : ''}{(contentShiftY * 100).toFixed(0)}%</span>
+            </label>
+            <input
+              type="range"
+              min="-0.5"
+              max="0.5"
+              step="0.05"
+              value={contentShiftY}
+              onChange={(e) => setContentShiftY(parseFloat(e.target.value))}
+              className="w-full accent-blue-600"
+            />
+          </div>
+          <p className="text-[10px] text-slate-400">Nudge the timeline around</p>
         </div>
 
         <div className="relative bg-purple-50/60 border border-purple-200 rounded-xl p-4 space-y-3">

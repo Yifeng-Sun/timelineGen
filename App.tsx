@@ -51,6 +51,8 @@ const App: React.FC = () => {
   const [items, setItems] = useState<TimelineItem[]>(loadItems);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(ASPECT_RATIOS[5]); // 9:16
   const [contentScale, setContentScale] = useState<number>(1);
+  const [contentShiftX, setContentShiftX] = useState<number>(0);
+  const [contentShiftY, setContentShiftY] = useState<number>(0);
   const [zoom, setZoom] = useState<number>(1);
   const [theme, setTheme] = useState<Theme>(THEMES.modern);
   const [font, setFont] = useState<FontOption>(FONTS[0]);
@@ -541,6 +543,10 @@ const App: React.FC = () => {
         setAspectRatio={setAspectRatio}
         contentScale={contentScale}
         setContentScale={setContentScale}
+        contentShiftX={contentShiftX}
+        setContentShiftX={setContentShiftX}
+        contentShiftY={contentShiftY}
+        setContentShiftY={setContentShiftY}
         theme={theme}
         setTheme={setTheme}
         font={font}
@@ -630,6 +636,8 @@ const App: React.FC = () => {
                         items={items}
                         theme={theme}
                         contentScale={contentScale}
+                        contentShiftX={contentShiftX}
+                        contentShiftY={contentShiftY}
                         exportMode={true}
                         sliceIndex={i}
                         totalSlices={exportSlices}
@@ -671,6 +679,8 @@ const App: React.FC = () => {
                   items={items}
                   theme={theme}
                   contentScale={contentScale}
+                  contentShiftX={contentShiftX}
+                  contentShiftY={contentShiftY}
                   canvasWidth={baseWidth}
                   canvasHeight={baseHeight}
                   compressGaps={compressGaps}
@@ -1108,6 +1118,8 @@ const App: React.FC = () => {
           items={items}
           theme={theme}
           contentScale={contentScale}
+          contentShiftX={contentShiftX}
+          contentShiftY={contentShiftY}
           exportMode={true}
           sliceIndex={0}
           totalSlices={exportSlices}

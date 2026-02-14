@@ -24,6 +24,8 @@ interface TimelinePreviewProps {
   compressGaps?: boolean;
   avoidSplit?: boolean;
   compactDates?: boolean;
+  contentShiftX?: number;
+  contentShiftY?: number;
   font?: FontOption;
   onItemUpdate?: (id: string, changes: Partial<{ label: string }>) => void;
   onItemDelete?: (id: string) => void;
@@ -166,6 +168,8 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   compressGaps = false,
   avoidSplit = false,
   compactDates = false,
+  contentShiftX = 0,
+  contentShiftY = 0,
   font,
   onItemUpdate,
   onItemDelete,
@@ -205,8 +209,11 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
 
   const actualWidth = exportMode ? canvasWidth * totalSlices : canvasWidth;
   const actualHeight = canvasHeight;
-  const rangeStart = actualWidth * 0.1;
-  const rangeEnd = actualWidth * 0.9;
+  // Use per-page padding so the first/last slide content stays near the edges
+  const pagePadding = canvasWidth * 0.1;
+  const shiftPx = contentShiftX * canvasWidth;
+  const rangeStart = pagePadding + shiftPx;
+  const rangeEnd = actualWidth - pagePadding + shiftPx;
 
   // Build scale — either compressed or linear
   const { xScale, gapBreaks } = useMemo(() => {
@@ -228,7 +235,7 @@ const TimelinePreview: React.FC<TimelinePreviewProps> = ({
   );
 
   const editable = !!onItemUpdate;
-  const y = actualHeight * 0.58;
+  const y = actualHeight * 0.58 + contentShiftY * canvasHeight;
 
   // --- Layout computation: dynamic sizing + collision avoidance ---
   const layoutResult = useMemo(() => {
