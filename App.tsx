@@ -221,10 +221,14 @@ const App: React.FC = () => {
     }
   }, [user, pushTitle, pushMode, pushTargetId, items]);
 
-  // Open pull dialog
-  const handleOpenPull = useCallback(() => {
+  // Open pull dialog (refresh list first)
+  const handleOpenPull = useCallback(async () => {
     setPullTarget(null);
     setShowPullDialog(true);
+    try {
+      const { timelines: updated } = await apiFetchTimelines();
+      setTimelines(updated);
+    } catch { /* keep stale list */ }
   }, []);
 
   // Confirm pull
